@@ -298,7 +298,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     padding: 16px 18px;
   }
   .stat-label {
-    font-size: 13px;
+    font-size: 15px;
     color: var(--text-secondary);
     margin-bottom: 6px;
   }
@@ -373,11 +373,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }
   .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
-  table { width: 100%; border-collapse: collapse; table-layout: auto; font-size: 13.5px; }
+  table { width: 100%; border-collapse: collapse; table-layout: auto; font-size: 13.8px; }
   thead th {
     text-align: left;
     padding: 8px 8px;
-    font-size: 11.5px;
+    font-size: 11.85px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-secondary);
