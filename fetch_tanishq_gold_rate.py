@@ -20,7 +20,9 @@ How it works, in plain English:
        then the "Today" price in that row.
     4. Clean up the price text (remove "₹", commas, extra spaces) and turn
        it into a plain number.
-    5. Save that number, along with today's date, to a JSON file.
+    5. Save that number, along with today's date, to a JSON file. If every
+       attempt failed instead, fall back to the last known rate already
+       sitting in that JSON file (if any) - see "NOTE ON STALE FALLBACK".
 
 IMPORTANT NOTE ON FRAGILITY:
     This script reads a public webpage, not an official API. Tanishq could
@@ -52,6 +54,17 @@ NOTE ON STEALTH:
     script that hides the `navigator.webdriver` flag Cloudflare (and other
     bot-checks) look for. None of this guarantees success, but it reduces
     the odds of being flagged before the challenge even runs.
+
+NOTE ON STALE FALLBACK:
+    A blocked/failed fetch shouldn't take down the whole daily pipeline -
+    the SharePoint fetch and dashboard build downstream are still useful
+    even without a brand-new rate. So if all retry attempts fail, we reuse
+    the rate_inr/date_fetched from the last successful run (read from this
+    script's own output file before the fetch attempt), mark it with
+    "is_stale": true and a "stale_reason" explaining what happened, and
+    exit 0 so the rest of the pipeline still runs. A successful fresh fetch
+    always writes "is_stale": false. Only if there's no previous file to
+    fall back on (e.g. the very first run ever) does a failed fetch exit 1.
 
 Run this manually with:  python fetch_tanishq_gold_rate.py
 """
@@ -295,6 +308,29 @@ def extract_today_price_for_1g(table) -> float:
     raise RetryableFetchError("Could not find a '1 G' row inside the 22 Kt Gold Rate table.")
 
 
+def load_previous_result(path: str) -> dict | None:
+    """
+    Read the last-known fetch_tanishq_gold_rate.json (if any) BEFORE
+    attempting a fresh fetch, so there's something to fall back to if every
+    attempt below fails. Returns None if there's nothing usable to fall
+    back on (no file yet, corrupt JSON, or missing the fields we need) -
+    in that case a failed fetch has to be a real, hard failure.
+    """
+    if not os.path.exists(path):
+        return None
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(data, dict) or not data.get("date_fetched") or not data.get("rate_inr"):
+        return None
+
+    return data
+
+
 def fetch_todays_rate() -> float:
     """
     STEPS 1-4: Fetch the page, parse it, and extract today's 1g/22K price.
@@ -328,6 +364,10 @@ def save_result(data: dict, path: str) -> None:
 
 
 def main():
+    # Read the last-known result BEFORE touching anything, so a fresh fetch
+    # that ultimately fails still leaves us something to fall back to.
+    previous_result = load_previous_result(OUTPUT_FILE)
+
     try:
         # -----------------------------------------------------------------
         # STEPS 1-4: Fetch, parse, and extract today's rate - retrying up
@@ -354,6 +394,32 @@ def main():
                     time.sleep(RETRY_DELAY_SECONDS)
 
         if rate_inr is None:
+            # Every attempt failed. Rather than stopping the whole daily
+            # pipeline, fall back to the last known-good rate (clearly
+            # flagged as stale) if we have one - the SharePoint fetch and
+            # dashboard build downstream should still run today.
+            if previous_result is not None:
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                fallback_result = dict(previous_result)
+                fallback_result["is_stale"] = True
+                fallback_result["stale_reason"] = (
+                    f"Live fetch failed on {today_str}; showing last known rate "
+                    f"from {previous_result['date_fetched']}"
+                )
+                save_result(fallback_result, OUTPUT_FILE)
+
+                print(
+                    f"\nWARNING: Live fetch failed after {MAX_FETCH_ATTEMPTS} attempts "
+                    f"({last_retryable_error}).\n"
+                    f"Falling back to the last known rate: Rs. {previous_result['rate_inr']} "
+                    f"(from {previous_result['date_fetched']}), marked as stale.\n"
+                    f"Saved to '{OUTPUT_FILE}'."
+                )
+                sys.exit(0)  # valid (if stale) data exists - let the pipeline continue
+
+            # No previous data to fall back on (e.g. the very first run
+            # ever) - there's truly nothing usable, so this is a real
+            # failure.
             raise last_retryable_error
 
         # -----------------------------------------------------------------
@@ -364,6 +430,7 @@ def main():
             "karat": "22K",
             "weight_grams": 1,
             "rate_inr": rate_inr,
+            "is_stale": False,
         }
         save_result(result, OUTPUT_FILE)
 

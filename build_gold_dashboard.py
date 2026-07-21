@@ -216,6 +216,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     --good-tint:      #eaf6ea;
     --critical-text:  #d03b3b;
     --critical-tint:  #fbecec;
+    --warning-text:   #6b4e00;
+    --warning-tint:   #fff4d6;
+    --warning-border: #f0c96b;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -232,6 +235,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       --good-tint:      #123018;
       --critical-text:  #e66767;
       --critical-tint:  #341616;
+      --warning-text:   #ffd873;
+      --warning-tint:   #3a2e0a;
+      --warning-border: #6b5312;
     }
   }
 
@@ -260,6 +266,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     margin: 0;
     color: var(--text-secondary);
     font-size: 14px;
+  }
+
+  .stale-banner {
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--warning-tint);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-text);
+    font-size: 14px;
+    font-weight: 600;
   }
 
   .stat-grid {
@@ -381,7 +398,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <div class="dashboard">
-
+  __STALE_BANNER__
   <header class="dash-header">
     <h1>Gold Inventory Dashboard</h1>
     <p class="subtitle">__SUBTITLE__</p>
@@ -613,6 +630,18 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
         f"Using 22K rate {format_inr(todays_rate)}/gram (fetched {rate_fetched_date})"
     )
 
+    # bool(...) so a missing "is_stale" field (older JSON files, before this
+    # field existed) is treated the same as false - no banner, as before.
+    stale_banner = ""
+    if bool(rate_info.get("is_stale")):
+        stale_banner = (
+            '<div class="stale-banner">'
+            "⚠ Gold rate could not be fetched today — showing last known rate "
+            f"from {rate_fetched_date}. Profit/Loss figures below may not reflect "
+            "today's actual market price."
+            "</div>"
+        )
+
     total_pl = totals["total_profit_loss"]
     total_pl_class = "positive" if total_pl >= 0 else "negative"
     total_pl_amount = format_inr(total_pl)
@@ -632,6 +661,7 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
     rows_json = json.dumps(rows, ensure_ascii=False).replace("</", "<\\/")
 
     html = HTML_TEMPLATE
+    html = html.replace("__STALE_BANNER__", stale_banner)
     html = html.replace("__SUBTITLE__", subtitle)
     html = html.replace("__TOTAL_ITEMS__", str(totals["total_items"]))
     html = html.replace("__TOTAL_OUR_AMOUNT__", format_inr(totals["total_our_amount"]))
