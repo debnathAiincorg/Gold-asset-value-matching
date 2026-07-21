@@ -254,9 +254,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }
 
   .dashboard {
-    max-width: 1200px;
+    max-width: 1400px;
+    width: 95%;
     margin: 0 auto;
-    padding: 32px 20px 60px;
+    padding: 32px 0 60px;
   }
 
   header.dash-header h1 {
@@ -369,30 +370,31 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   }
   .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
-  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 900px; }
+  table { width: 100%; border-collapse: collapse; table-layout: auto; font-size: 13.5px; }
   thead th {
     text-align: left;
-    padding: 10px 14px;
-    font-size: 12px;
+    padding: 8px 8px;
+    font-size: 11.5px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-secondary);
     background: var(--surface-1);
     border-bottom: 1px solid var(--gridline);
-    cursor: pointer;
+    cursor: default;
     user-select: none;
     white-space: nowrap;
     position: sticky;
     top: 0;
     z-index: 1;
   }
-  thead th:hover { color: var(--text-primary); }
+  thead th[data-key="date"] { cursor: pointer; }
+  thead th[data-key="date"]:hover { color: var(--text-primary); }
   thead th.num, td.num { text-align: right; white-space: nowrap; }
   td.date-col { white-space: nowrap; }
   .sort-indicator { font-size: 10px; margin-left: 4px; color: var(--text-muted); }
 
   tbody td {
-    padding: 10px 14px;
+    padding: 8px 8px;
     border-bottom: 1px solid var(--gridline);
     font-variant-numeric: tabular-nums;
   }
@@ -402,7 +404,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   .pl-cell.positive { color: var(--good-text); font-weight: 600; }
   .pl-cell.negative { color: var(--critical-text); font-weight: 600; }
-  .pl-pct { font-weight: 400; font-size: 12.5px; margin-left: 4px; }
+  .pl-pct { display: block; margin-top: 2px; font-weight: 400; font-size: 12px; }
 
   .empty-state {
     padding: 40px 20px;
@@ -456,15 +458,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <thead>
           <tr>
             <th data-key="date" tabindex="0">Date<span class="sort-indicator"></span></th>
-            <th data-key="product" tabindex="0">Product Details<span class="sort-indicator"></span></th>
-            <th data-key="vendor" tabindex="0">Vendor Name<span class="sort-indicator"></span></th>
-            <th data-key="weight" class="num" tabindex="0">Net Weight (g)<span class="sort-indicator"></span></th>
-            <th data-key="purity" class="num" tabindex="0">Purity<span class="sort-indicator"></span></th>
-            <th data-key="rate" class="num" tabindex="0">Purchase Rate<span class="sort-indicator"></span></th>
-            <th data-key="ourAmount" class="num" tabindex="0">Our Amount<span class="sort-indicator"></span></th>
-            <th data-key="todaysValue" class="num" tabindex="0">Today's Value<span class="sort-indicator"></span></th>
-            <th data-key="profitLoss" class="num" tabindex="0">Profit / Loss<span class="sort-indicator"></span></th>
-            <th data-key="notes" tabindex="0">Notes<span class="sort-indicator"></span></th>
+            <th data-key="product">Product Details</th>
+            <th data-key="vendor">Vendor Name</th>
+            <th data-key="weight" class="num">Net Weight (g)</th>
+            <th data-key="purity" class="num">Purity</th>
+            <th data-key="rate" class="num">Purchase Rate</th>
+            <th data-key="ourAmount" class="num">Our Amount</th>
+            <th data-key="todaysValue" class="num">Today's Value</th>
+            <th data-key="profitLoss" class="num">Profit / Loss</th>
+            <th data-key="notes">Notes</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -644,21 +646,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     updateSummary(visibleRows);
   }
 
-  // Only the Date column shows a sort arrow, and it shows one at all times
-  // (reflecting whichever direction date would sort in, whether or not
-  // it's the currently active sort column) - every other column sorts
-  // correctly on click but never displays an arrow.
+  // Date is the only sortable column - its arrow is shown permanently,
+  // reflecting whichever direction it would sort in, whether or not it's
+  // the currently active sort.
+  var dateHeaderEl = document.querySelector('#inventoryTable thead th[data-key="date"]');
+  var dateIndicatorEl = dateHeaderEl.querySelector(".sort-indicator");
+
   function updateSortIndicators() {
-    var headers = document.querySelectorAll("#inventoryTable thead th");
-    headers.forEach(function (th) {
-      var indicator = th.querySelector(".sort-indicator");
-      if (th.getAttribute("data-key") === "date") {
-        var ascending = sortKey === "date" ? sortAscending : dateSortAscending;
-        indicator.textContent = ascending ? "\\u25b2" : "\\u25bc";
-      } else {
-        indicator.textContent = "";
-      }
-    });
+    var ascending = sortKey === "date" ? sortAscending : dateSortAscending;
+    dateIndicatorEl.textContent = ascending ? "\\u25b2" : "\\u25bc";
   }
 
   function handleHeaderActivate(th) {
@@ -669,21 +665,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       sortKey = key;
       sortAscending = true;
     }
-    if (key === "date") {
-      dateSortAscending = sortAscending;
-    }
+    dateSortAscending = sortAscending;
     updateSortIndicators();
     render();
   }
 
-  document.querySelectorAll("#inventoryTable thead th").forEach(function (th) {
-    th.addEventListener("click", function () { handleHeaderActivate(th); });
-    th.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        handleHeaderActivate(th);
-      }
-    });
+  dateHeaderEl.addEventListener("click", function () { handleHeaderActivate(dateHeaderEl); });
+  dateHeaderEl.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleHeaderActivate(dateHeaderEl);
+    }
   });
 
   searchInput.addEventListener("input", render);
