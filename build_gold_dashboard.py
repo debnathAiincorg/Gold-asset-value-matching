@@ -85,6 +85,25 @@ def safe_text(value) -> str:
     return str(value).strip()
 
 
+def safe_optional_number(value):
+    """
+    Like safe_number, but returns None (instead of a 0.0 default) for a
+    blank/missing/non-numeric cell - so callers can tell "no value was
+    provided" apart from "the value is genuinely zero".
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            return None
+        try:
+            return float(stripped)
+        except ValueError:
+            return None
+    return None
+
+
 def compute_rows(inventory: list, todays_rate: float) -> list:
     """
     STEP 2: Work out Our Amount / Today's Value / Profit-Loss for every
@@ -99,10 +118,16 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
         purchase_rate = safe_number(record.get("Purchase gold Rate"))
         purity_karat = safe_number(record.get("Purity Karat"))
 
-        # "Our Amount" is the raw gold cost only (weight x rate we paid) -
-        # deliberately NOT the "Total Value" column, which also bakes in
-        # making charges.
-        our_amount = net_weight_gm * purchase_rate
+        # "Our Amount" is the raw gold cost only, deliberately NOT the
+        # "Total Value" column, which also bakes in making charges. Prefer
+        # the sheet's own "Gross Amount" figure when it's actually filled
+        # in; only fall back to weight x rate we paid when that cell is
+        # blank, since the sheet value can reflect real invoice rounding
+        # that a recalculation wouldn't reproduce exactly.
+        gross_amount = safe_optional_number(record.get("Gross Amount"))
+        our_amount = (
+            gross_amount if gross_amount is not None else net_weight_gm * purchase_rate
+        )
 
         # "Today's Value" applies today's 22K rate to every item's weight,
         # regardless of that item's own purity - per the requested logic.
