@@ -41,6 +41,17 @@ jobs:
       - name: Fetch today's Tanishq gold rate
         run: python fetch_tanishq_gold_rate.py
 
+      # Only runs if the step above failed. If it timed out waiting for the
+      # rate table, the script will have saved debug_screenshot.png - upload
+      # it so we can see what was actually on screen (Cloudflare challenge,
+      # error page, etc.) without needing to reproduce the failure locally.
+      - name: Upload debug screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tanishq-debug-screenshot
+          path: debug_screenshot.png
+
       # Same as above: any failure here stops the job before the dashboard
       # is (re)built, so a bad/partial fetch never overwrites a good dashboard.
       - name: Fetch gold inventory from SharePoint

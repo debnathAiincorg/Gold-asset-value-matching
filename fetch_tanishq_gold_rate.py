@@ -63,6 +63,10 @@ SOURCE_URL = "https://www.tanishq.co.in/gold-rate.html?lang=en_IN"
 
 OUTPUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetch_tanishq_gold_rate.json")
 
+# Saved only if the wait for the gold rate table times out, so we can see
+# what was actually on screen (a Cloudflare challenge, an error page, etc.).
+SCREENSHOT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_screenshot.png")
+
 # A realistic browser User-Agent. Some websites block requests that don't
 # have one, since it's a common sign of an automated bot rather than a
 # normal visitor using a browser like Chrome.
@@ -126,10 +130,22 @@ def fetch_page_html(url: str) -> str:
                         CLOUDFLARE_CLEARED_SELECTOR, timeout=CLOUDFLARE_WAIT_TIMEOUT_MS
                     )
                 except PlaywrightTimeoutError:
+                    # Capture whatever is currently on screen (Cloudflare
+                    # challenge, error page, etc.) to help diagnose why the
+                    # wait timed out. Best-effort - a screenshot failure
+                    # shouldn't hide the real error below.
+                    screenshot_note = ""
+                    try:
+                        page.screenshot(path=SCREENSHOT_FILE)
+                        screenshot_note = f" A screenshot was saved to '{SCREENSHOT_FILE}'."
+                    except PlaywrightError:
+                        pass
+
                     raise RuntimeError(
                         f"Timed out after {CLOUDFLARE_WAIT_TIMEOUT_MS // 1000}s waiting for "
                         "the 22 Kt gold rate table to appear on the page. Either Cloudflare's "
                         "bot-check didn't clear in time, or Tanishq has redesigned the page."
+                        + screenshot_note
                     )
 
                 html = page.content()
