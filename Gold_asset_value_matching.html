@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gold Inventory Dashboard</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page-plane:     #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --surface-2:      #f0efec;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --border:         rgba(11,11,11,0.10);
+    --good-text:      #006300;
+    --good-tint:      #eaf6ea;
+    --critical-text:  #d03b3b;
+    --critical-tint:  #fbecec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page-plane:     #0d0d0d;
+      --surface-1:      #1a1a19;
+      --surface-2:      #232322;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --border:         rgba(255,255,255,0.10);
+      --good-text:      #0ca30c;
+      --good-tint:      #123018;
+      --critical-text:  #e66767;
+      --critical-tint:  #341616;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.4;
+  }
+
+  .dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  header.dash-header h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 600;
+  }
+  header.dash-header .subtitle {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+
+  .stat-grid {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .stat-tile.positive .stat-value { color: var(--good-text); }
+  .stat-tile.negative .stat-value { color: var(--critical-text); }
+  .stat-delta { font-size: 15px; font-weight: 500; margin-left: 4px; }
+  .stat-caption {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .table-section {
+    margin-top: 30px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .table-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--gridline);
+  }
+  #searchInput {
+    flex: 1 1 240px;
+    min-width: 200px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--gridline);
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .row-count {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .table-scroll { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 900px; }
+  thead th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--gridline);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { color: var(--text-primary); }
+  thead th.num, td.num { text-align: right; }
+  .sort-indicator { font-size: 10px; margin-left: 4px; color: var(--text-muted); }
+
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  tr.sold-row { opacity: 0.55; font-style: italic; }
+
+  .pl-cell.positive { color: var(--good-text); font-weight: 600; }
+  .pl-cell.negative { color: var(--critical-text); font-weight: 600; }
+  .pl-pct { font-weight: 400; font-size: 12.5px; margin-left: 4px; }
+
+  .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  footer.dash-footer {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <header class="dash-header">
+    <h1>Gold Inventory Dashboard</h1>
+    <p class="subtitle">Generated on 2026-07-21 &middot; Using 22K rate ₹13,195.00/gram (fetched 2026-07-21)</p>
+  </header>
+
+  <section class="stat-grid">
+    <div class="stat-tile">
+      <div class="stat-label">Total Items</div>
+      <div class="stat-value">50</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Total Our Amount</div>
+      <div class="stat-value">₹75,77,316.80</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Total Today's Value</div>
+      <div class="stat-value">₹73,20,005.47</div>
+    </div>
+    <div class="stat-tile negative">
+      <div class="stat-label">Total Profit / Loss</div>
+      <div class="stat-value">-₹2,57,311.33<span class="stat-delta">(-3.40%)</span></div>
+      <div class="stat-caption">Includes 7 sold item(s) still counted in these totals</div>
+    </div>
+  </section>
+
+  <section class="table-section">
+    <div class="table-controls">
+      <input type="search" id="searchInput" placeholder="Search product, vendor, or notes...">
+      <label class="toggle"><input type="checkbox" id="hideSoldCheckbox"> Hide sold items</label>
+      <span class="row-count" id="rowCount"></span>
+    </div>
+    <div class="table-scroll">
+      <table id="inventoryTable">
+        <thead>
+          <tr>
+            <th data-key="product" tabindex="0">Product Details<span class="sort-indicator"></span></th>
+            <th data-key="vendor" tabindex="0">Vendor Name<span class="sort-indicator"></span></th>
+            <th data-key="weight" class="num" tabindex="0">Net Weight (g)<span class="sort-indicator"></span></th>
+            <th data-key="purity" class="num" tabindex="0">Purity<span class="sort-indicator"></span></th>
+            <th data-key="rate" class="num" tabindex="0">Purchase Rate<span class="sort-indicator"></span></th>
+            <th data-key="ourAmount" class="num" tabindex="0">Our Amount<span class="sort-indicator"></span></th>
+            <th data-key="todaysValue" class="num" tabindex="0">Today's Value<span class="sort-indicator"></span></th>
+            <th data-key="profitLoss" class="num" tabindex="0">Profit / Loss<span class="sort-indicator"></span></th>
+            <th data-key="notes" tabindex="0">Notes<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="dash-footer">Generated by build_gold_dashboard.py on 2026-07-21 10:58:45</footer>
+</div>
+
+<script type="application/json" id="row-data">[{"product": "Gold pendent", "vendor": "P.C. CHANDRA", "weight": 1.02, "purity": 24.0, "rate": 9776.0, "ourAmount": 9971.52, "todaysValue": 13458.9, "profitLoss": 3487.38, "profitLossPct": 34.97, "notes": "", "remarks": "", "isSold": false}, {"product": "IVY (Earing)", "vendor": "P.C. CHANDRA", "weight": 3.6, "purity": 22.0, "rate": 9190.0, "ourAmount": 33084.0, "todaysValue": 47502.0, "profitLoss": 14418.0, "profitLossPct": 43.58, "notes": "", "remarks": "", "isSold": false}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 10358.1, "ourAmount": 103581.0, "todaysValue": 131950.0, "profitLoss": 28369.0, "profitLossPct": 27.39, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 10358.1, "ourAmount": 103581.0, "todaysValue": 131950.0, "profitLoss": 28369.0, "profitLossPct": 27.39, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 11269.0, "ourAmount": 112690.0, "todaysValue": 131950.0, "profitLoss": 19260.0, "profitLossPct": 17.09, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 11105.36, "ourAmount": 111053.6, "todaysValue": 131950.0, "profitLoss": 20896.4, "profitLossPct": 18.82, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 12354.44, "ourAmount": 123544.4, "todaysValue": 131950.0, "profitLoss": 8405.6, "profitLossPct": 6.8, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 13472.62, "ourAmount": 134726.2, "todaysValue": 131950.0, "profitLoss": -2776.2, "profitLossPct": -2.06, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "Coin", "vendor": "TANISHQ", "weight": 10.0, "purity": 24.0, "rate": 13096.25, "ourAmount": 130962.5, "todaysValue": 131950.0, "profitLoss": 987.5, "profitLossPct": 0.75, "notes": "Sold", "remarks": "", "isSold": true}, {"product": "BANGLES", "vendor": "TANISHQ", "weight": 15.443, "purity": 22.0, "rate": 12500.0, "ourAmount": 193037.5, "todaysValue": 203770.39, "profitLoss": 10732.89, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "BANGLES", "vendor": "TANISHQ", "weight": 15.364, "purity": 22.0, "rate": 12500.0, "ourAmount": 192050.0, "todaysValue": 202727.98, "profitLoss": 10677.98, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "CHAIN", "vendor": "TANISHQ", "weight": 7.589, "purity": 22.0, "rate": 12500.0, "ourAmount": 94862.5, "todaysValue": 100136.86, "profitLoss": 5274.36, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "CHAIN", "vendor": "TANISHQ", "weight": 8.369, "purity": 22.0, "rate": 12500.0, "ourAmount": 104612.5, "todaysValue": 110428.96, "profitLoss": 5816.46, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "CHAIN", "vendor": "TANISHQ", "weight": 11.353, "purity": 22.0, "rate": 12500.0, "ourAmount": 141912.5, "todaysValue": 149802.83, "profitLoss": 7890.33, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "BANGLES", "vendor": "TANISHQ", "weight": 6.743, "purity": 22.0, "rate": 12500.0, "ourAmount": 84287.5, "todaysValue": 88973.89, "profitLoss": 4686.39, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "BANGLES", "vendor": "TANISHQ", "weight": 6.462, "purity": 22.0, "rate": 12500.0, "ourAmount": 80775.0, "todaysValue": 85266.09, "profitLoss": 4491.09, "profitLossPct": 5.56, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.289, "purity": 22.0, "rate": 12925.0, "ourAmount": 158835.32, "todaysValue": 162153.36, "profitLoss": 3318.03, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.104, "purity": 22.0, "rate": 12925.0, "ourAmount": 156444.2, "todaysValue": 159712.28, "profitLoss": 3268.08, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.462, "purity": 22.0, "rate": 12925.0, "ourAmount": 161071.35, "todaysValue": 164436.09, "profitLoss": 3364.74, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.598, "purity": 22.0, "rate": 12925.0, "ourAmount": 162829.15, "todaysValue": 166230.61, "profitLoss": 3401.46, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 15.509, "purity": 22.0, "rate": 12925.0, "ourAmount": 200453.83, "todaysValue": 204641.26, "profitLoss": 4187.43, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.359, "purity": 22.0, "rate": 12925.0, "ourAmount": 120965.07, "todaysValue": 123492.01, "profitLoss": 2526.93, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.047, "purity": 22.0, "rate": 12925.0, "ourAmount": 116932.48, "todaysValue": 119375.17, "profitLoss": 2442.69, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.637, "purity": 22.0, "rate": 12925.0, "ourAmount": 124558.23, "todaysValue": 127160.22, "profitLoss": 2601.99, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 16.118, "purity": 22.0, "rate": 12925.0, "ourAmount": 208325.15, "todaysValue": 212677.01, "profitLoss": 4351.86, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 14.077, "purity": 22.0, "rate": 12925.0, "ourAmount": 181945.23, "todaysValue": 185746.02, "profitLoss": 3800.79, "profitLossPct": 2.09, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 8.544, "purity": 22.0, "rate": 14205.0, "ourAmount": 121367.52, "todaysValue": 112738.08, "profitLoss": -8629.44, "profitLossPct": -7.11, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 8.107, "purity": 22.0, "rate": 14205.0, "ourAmount": 115159.93, "todaysValue": 106971.86, "profitLoss": -8188.07, "profitLossPct": -7.11, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 8.787, "purity": 22.0, "rate": 14205.0, "ourAmount": 124819.34, "todaysValue": 115944.47, "profitLoss": -8874.87, "profitLossPct": -7.11, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 10.525, "purity": 22.0, "rate": 14205.0, "ourAmount": 149507.62, "todaysValue": 138877.38, "profitLoss": -10630.25, "profitLossPct": -7.11, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.779, "purity": 22.0, "rate": 14510.0, "ourAmount": 141893.29, "todaysValue": 129033.9, "profitLoss": -12859.39, "profitLossPct": -9.06, "notes": "", "remarks": "", "isSold": false}, {"product": "Bangles", "vendor": "TANISHQ", "weight": 12.276, "purity": 22.0, "rate": 14330.0, "ourAmount": 175915.08, "todaysValue": 161981.82, "profitLoss": -13933.26, "profitLossPct": -7.92, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.365, "purity": 22.0, "rate": 14330.0, "ourAmount": 177190.45, "todaysValue": 163156.17, "profitLoss": -14034.28, "profitLossPct": -7.92, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.56, "purity": 22.0, "rate": 14330.0, "ourAmount": 179984.8, "todaysValue": 165729.2, "profitLoss": -14255.6, "profitLossPct": -7.92, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.051, "purity": 22.0, "rate": 14740.0, "ourAmount": 177631.74, "todaysValue": 159012.95, "profitLoss": -18618.79, "profitLossPct": -10.48, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.55, "purity": 22.0, "rate": 14740.0, "ourAmount": 140767.0, "todaysValue": 126012.25, "profitLoss": -14754.75, "profitLossPct": -10.48, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.845, "purity": 22.0, "rate": 14740.0, "ourAmount": 189335.3, "todaysValue": 169489.77, "profitLoss": -19845.53, "profitLossPct": -10.48, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 5.707, "purity": 22.0, "rate": 14740.0, "ourAmount": 84121.18, "todaysValue": 75303.87, "profitLoss": -8817.31, "profitLossPct": -10.48, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 15.778, "purity": 22.0, "rate": 14740.0, "ourAmount": 232567.72, "todaysValue": 208190.71, "profitLoss": -24377.01, "profitLossPct": -10.48, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 22.958, "purity": 22.0, "rate": 14890.0, "ourAmount": 341844.62, "todaysValue": 302930.81, "profitLoss": -38913.81, "profitLossPct": -11.38, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 9.009, "purity": 22.0, "rate": 14880.0, "ourAmount": 134053.92, "todaysValue": 118873.76, "profitLoss": -15180.17, "profitLossPct": -11.32, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 8.476, "purity": 22.0, "rate": 14880.0, "ourAmount": 126122.88, "todaysValue": 111840.82, "profitLoss": -14282.06, "profitLossPct": -11.32, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 5.748, "purity": 22.0, "rate": 14880.0, "ourAmount": 85530.24, "todaysValue": 75844.86, "profitLoss": -9685.38, "profitLossPct": -11.32, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 11.935, "purity": 22.0, "rate": 14880.0, "ourAmount": 177592.8, "todaysValue": 157482.33, "profitLoss": -20110.48, "profitLossPct": -11.32, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 12.231, "purity": 22.0, "rate": 14880.0, "ourAmount": 181997.28, "todaysValue": 161388.05, "profitLoss": -20609.23, "profitLossPct": -11.32, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 3.302, "purity": 22.0, "rate": 14860.0, "ourAmount": 49067.72, "todaysValue": 43569.89, "profitLoss": -5497.83, "profitLossPct": -11.2, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 11.194, "purity": 22.0, "rate": 14860.0, "ourAmount": 166342.84, "todaysValue": 147704.83, "profitLoss": -18638.01, "profitLossPct": -11.2, "notes": "", "remarks": "", "isSold": false}, {"product": "Bangles", "vendor": "TANISHQ", "weight": 51.624, "purity": 22.0, "rate": 15680.0, "ourAmount": 809464.32, "todaysValue": 681178.68, "profitLoss": -128285.64, "profitLossPct": -15.85, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 2.877, "purity": 22.0, "rate": 15680.0, "ourAmount": 45111.36, "todaysValue": 37962.01, "profitLoss": -7149.34, "profitLossPct": -15.85, "notes": "", "remarks": "", "isSold": false}, {"product": "Chain", "vendor": "TANISHQ", "weight": 7.385, "purity": 22.0, "rate": 13925.0, "ourAmount": 102836.12, "todaysValue": 97445.07, "profitLoss": -5391.05, "profitLossPct": -5.24, "notes": "", "remarks": "", "isSold": false}]</script>
+<script>
+(function () {
+  "use strict";
+
+  var rows = JSON.parse(document.getElementById("row-data").textContent);
+  var tableBody = document.getElementById("tableBody");
+  var searchInput = document.getElementById("searchInput");
+  var hideSoldCheckbox = document.getElementById("hideSoldCheckbox");
+  var rowCountEl = document.getElementById("rowCount");
+
+  var sortKey = null;
+  var sortAscending = true;
+
+  var inrFormatter = new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  function formatINR(amount) {
+    var sign = amount < 0 ? "-" : "";
+    return sign + "\u20b9" + inrFormatter.format(Math.abs(amount));
+  }
+
+  function formatKarat(value) {
+    return (Number.isInteger(value) ? value : value.toFixed(1)) + "K";
+  }
+
+  // Build one <tr> for a row of data. We use textContent (never innerHTML)
+  // for anything that came from the spreadsheet, since that text is user
+  // data and could contain characters that would otherwise be misread as
+  // HTML markup.
+  function buildRow(row) {
+    var tr = document.createElement("tr");
+    if (row.isSold) {
+      tr.className = "sold-row";
+    }
+
+    function addCell(text, extraClass) {
+      var td = document.createElement("td");
+      if (extraClass) td.className = extraClass;
+      td.textContent = text;
+      tr.appendChild(td);
+      return td;
+    }
+
+    addCell(row.product);
+    addCell(row.vendor);
+    addCell(row.weight.toFixed(3), "num");
+    addCell(formatKarat(row.purity), "num");
+    addCell(formatINR(row.rate), "num");
+    addCell(formatINR(row.ourAmount), "num");
+    addCell(formatINR(row.todaysValue), "num");
+
+    var plTd = document.createElement("td");
+    plTd.className = "num pl-cell " + (row.profitLoss >= 0 ? "positive" : "negative");
+    var arrow = row.profitLoss >= 0 ? "\u25b2 " : "\u25bc ";
+    plTd.textContent = arrow + formatINR(row.profitLoss);
+    var pctSpan = document.createElement("span");
+    pctSpan.className = "pl-pct";
+    pctSpan.textContent = "(" + (row.profitLossPct >= 0 ? "+" : "") + row.profitLossPct.toFixed(2) + "%)";
+    plTd.appendChild(pctSpan);
+    tr.appendChild(plTd);
+
+    addCell(row.notes);
+
+    return tr;
+  }
+
+  function currentRows() {
+    var term = searchInput.value.trim().toLowerCase();
+    var hideSold = hideSoldCheckbox.checked;
+
+    var filtered = rows.filter(function (row) {
+      if (hideSold && row.isSold) return false;
+      if (!term) return true;
+      var haystack = (row.product + " " + row.vendor + " " + row.notes).toLowerCase();
+      return haystack.indexOf(term) !== -1;
+    });
+
+    if (sortKey) {
+      filtered.sort(function (a, b) {
+        var av = a[sortKey];
+        var bv = b[sortKey];
+        if (typeof av === "string") {
+          av = av.toLowerCase();
+          bv = bv.toLowerCase();
+        }
+        if (av < bv) return sortAscending ? -1 : 1;
+        if (av > bv) return sortAscending ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }
+
+  function render() {
+    var visibleRows = currentRows();
+
+    tableBody.textContent = "";
+    if (visibleRows.length === 0) {
+      var tr = document.createElement("tr");
+      var td = document.createElement("td");
+      td.colSpan = 9;
+      td.className = "empty-state";
+      td.textContent = "No items match your search.";
+      tr.appendChild(td);
+      tableBody.appendChild(tr);
+    } else {
+      visibleRows.forEach(function (row) {
+        tableBody.appendChild(buildRow(row));
+      });
+    }
+
+    rowCountEl.textContent = "Showing " + visibleRows.length + " of " + rows.length + " items";
+  }
+
+  function updateSortIndicators() {
+    var headers = document.querySelectorAll("#inventoryTable thead th");
+    headers.forEach(function (th) {
+      var indicator = th.querySelector(".sort-indicator");
+      if (th.getAttribute("data-key") === sortKey) {
+        indicator.textContent = sortAscending ? "\u25b2" : "\u25bc";
+      } else {
+        indicator.textContent = "";
+      }
+    });
+  }
+
+  function handleHeaderActivate(th) {
+    var key = th.getAttribute("data-key");
+    if (sortKey === key) {
+      sortAscending = !sortAscending;
+    } else {
+      sortKey = key;
+      sortAscending = true;
+    }
+    updateSortIndicators();
+    render();
+  }
+
+  document.querySelectorAll("#inventoryTable thead th").forEach(function (th) {
+    th.addEventListener("click", function () { handleHeaderActivate(th); });
+    th.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleHeaderActivate(th);
+      }
+    });
+  });
+
+  searchInput.addEventListener("input", render);
+  hideSoldCheckbox.addEventListener("change", render);
+
+  render();
+})();
+</script>
+</body>
+</html>

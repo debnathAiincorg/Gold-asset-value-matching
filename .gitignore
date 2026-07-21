@@ -1,0 +1,7 @@
+# Secrets - never commit the real .env (contains Azure app credentials).
+# .env.example has no real values, so it's fine to keep tracked.
+.env
+
+# Python
+__pycache__/
+*.pyc

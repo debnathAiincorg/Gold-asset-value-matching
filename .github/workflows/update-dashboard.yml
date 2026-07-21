@@ -1,0 +1,87 @@
+name: Update Gold Dashboard
+
+on:
+  schedule:
+    # 30 2 * * * (UTC) = 08:00 IST every day (IST is UTC+5:30)
+    - cron: "30 2 * * *"
+  workflow_dispatch: {}
+
+# Avoid two Pages deployments racing each other if a run is ever triggered
+# manually while the scheduled run is still going.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    # Needed so this job can push the refreshed JSON/HTML files back to the repo.
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # If this step fails (e.g. Cloudflare blocks the runner), the job stops
+      # here by default - later steps are skipped and the run is marked failed.
+      - name: Fetch today's Tanishq gold rate
+        run: python fetch_tanishq_gold_rate.py
+
+      # Same as above: any failure here stops the job before the dashboard
+      # is (re)built, so a bad/partial fetch never overwrites a good dashboard.
+      - name: Fetch gold inventory from SharePoint
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: python fetch_excel_data.py
+
+      - name: Build dashboard HTML
+        run: python build_gold_dashboard.py
+
+      - name: Commit and push updated data files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fetch_tanishq_gold_rate.json fetch_excel_data.json Gold_asset_value_matching.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit - skipping."
+          else
+            git commit -m "Update gold dashboard data ($(date -u +'%Y-%m-%d'))"
+            git push
+          fi
+
+      # Only the generated HTML is published - the JSON files stay in the
+      # repo (for history) but are deliberately kept off the public Pages
+      # site since they contain vendor names and purchase rates.
+      - name: Prepare Pages artifact (dashboard HTML only)
+        run: |
+          mkdir -p _site
+          cp Gold_asset_value_matching.html _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: update-dashboard
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
