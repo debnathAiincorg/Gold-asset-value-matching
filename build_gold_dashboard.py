@@ -496,6 +496,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   var sortKey = null;
   var sortAscending = true;
+  // The Date column shows its sort arrow permanently, even while a
+  // different column is the active sort - so its direction has to be
+  // remembered separately from sortKey/sortAscending (which describe
+  // whichever column is currently active). Defaults to descending
+  // (newest-first) until the user actually sorts by date.
+  var dateSortAscending = false;
 
   var inrFormatter = new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 2,
@@ -638,12 +644,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     updateSummary(visibleRows);
   }
 
+  // Only the Date column shows a sort arrow, and it shows one at all times
+  // (reflecting whichever direction date would sort in, whether or not
+  // it's the currently active sort column) - every other column sorts
+  // correctly on click but never displays an arrow.
   function updateSortIndicators() {
     var headers = document.querySelectorAll("#inventoryTable thead th");
     headers.forEach(function (th) {
       var indicator = th.querySelector(".sort-indicator");
-      if (th.getAttribute("data-key") === sortKey) {
-        indicator.textContent = sortAscending ? "\\u25b2" : "\\u25bc";
+      if (th.getAttribute("data-key") === "date") {
+        var ascending = sortKey === "date" ? sortAscending : dateSortAscending;
+        indicator.textContent = ascending ? "\\u25b2" : "\\u25bc";
       } else {
         indicator.textContent = "";
       }
@@ -657,6 +668,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     } else {
       sortKey = key;
       sortAscending = true;
+    }
+    if (key === "date") {
+      dateSortAscending = sortAscending;
     }
     updateSortIndicators();
     render();
@@ -675,6 +689,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   searchInput.addEventListener("input", render);
   hideSoldCheckbox.addEventListener("change", render);
 
+  updateSortIndicators();
   render();
 })();
 </script>
