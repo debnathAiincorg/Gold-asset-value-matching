@@ -7,9 +7,9 @@ Purpose:
     so the rate can be tracked over time.
 
 How it works, in plain English:
-    1. Download the HTML of Tanishq's gold rate page, pretending to be a
-       normal web browser (some sites reject requests that don't look like
-       they come from a browser).
+    1. Launch a headless Chromium browser (via Playwright), navigate to
+       Tanishq's gold rate page, and wait for Cloudflare's automated
+       bot-check to clear before reading the fully-rendered HTML.
     2. Parse that HTML with BeautifulSoup, a library that turns raw HTML
        text into something we can search through (find tables, cells, etc.).
     3. Find the "22 Kt Gold Rate" table, then the row for "1 G" (1 gram),
@@ -28,13 +28,16 @@ IMPORTANT NOTE ON FRAGILITY:
 NOTE ON CLOUDFLARE:
     Tanishq's site sits behind Cloudflare, which shows visitors an
     automated JavaScript "challenge" page if they don't look like a real
-    browser - this blocks Python's plain `requests` library with an HTTP
-    403 error, even with browser-like headers set. `cloudscraper` is a thin
-    wrapper around `requests` that knows how to solve Cloudflare's basic JS
-    challenge, so it's used here instead of `requests` directly. If
-    Cloudflare changes/strengthens its challenge in the future, this may
-    stop working and `cloudscraper` would need to be updated (or a
-    headless-browser tool like Playwright/Selenium used instead).
+    browser - this blocks Python's plain `requests` library (and even
+    `cloudscraper`, which used to be used here) with an HTTP 403 error,
+    especially from shared/cloud IPs like GitHub Actions' runners. A real
+    headless browser (Playwright driving Chromium) actually executes the
+    challenge's JavaScript like a normal visitor would, so it clears the
+    check reliably. We wait for the rate table (or its heading) to appear
+    in the DOM after navigating, since that's the signal that Cloudflare's
+    challenge has finished and the real page has rendered. If Cloudflare
+    changes/strengthens its challenge in the future, this may need a longer
+    wait or a different clearance signal to watch for.
 
 Run this manually with:  python fetch_tanishq_gold_rate.py
 """
@@ -45,8 +48,11 @@ import sys
 import json
 from datetime import datetime
 
-import requests
-import cloudscraper
+from playwright.sync_api import (
+    Error as PlaywrightError,
+    TimeoutError as PlaywrightTimeoutError,
+    sync_playwright,
+)
 from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------------------
@@ -71,35 +77,76 @@ REQUEST_HEADERS = {
 
 REQUEST_TIMEOUT_SECONDS = 20
 
+# How long to wait (in milliseconds) for Cloudflare's JS challenge to clear
+# and the real page - specifically the 22 Kt gold rate table/heading - to
+# show up in the DOM. Cloudflare challenges usually resolve in a few
+# seconds, but shared/cloud IPs (like GitHub Actions runners) can take
+# longer, so this is deliberately generous.
+CLOUDFLARE_WAIT_TIMEOUT_MS = 45_000
+
+# Matches either the table's known CSS class, or (as a fallback, in case
+# that class name ever changes) a heading that mentions "22 Kt Gold Rate" -
+# the same two-tier approach used later by find_22kt_table().
+CLOUDFLARE_CLEARED_SELECTOR = (
+    "table.goldrate-table-22kt, "
+    "h1:has-text('22 Kt Gold Rate'), h2:has-text('22 Kt Gold Rate'), "
+    "h3:has-text('22 Kt Gold Rate'), h4:has-text('22 Kt Gold Rate')"
+)
+
 
 def fetch_page_html(url: str) -> str:
     """
-    STEP 1: Download the raw HTML of the gold rate page.
+    STEP 1: Use a headless Chromium browser (via Playwright) to load the
+    gold rate page and return the fully-rendered HTML.
 
-    We use `cloudscraper.create_scraper()` instead of a plain `requests`
-    session because Tanishq's site is behind Cloudflare's bot-check (see
-    the "NOTE ON CLOUDFLARE" comment at the top of this file). The
-    `browser=` setting tells cloudscraper what kind of browser fingerprint
-    to imitate while solving the challenge.
+    A real browser is used instead of `requests`/`cloudscraper` because it
+    actually executes Cloudflare's JavaScript challenge like a normal
+    visitor would (see the "NOTE ON CLOUDFLARE" comment at the top of this
+    file), rather than trying to imitate/spoof it.
 
-    Raises a RuntimeError with a clear message if the request fails.
+    Raises a RuntimeError with a clear message if the page can't be loaded.
     """
-    scraper = cloudscraper.create_scraper(
-        browser={"browser": "chrome", "platform": "windows", "mobile": False}
-    )
-    response = scraper.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT_SECONDS)
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            try:
+                context = browser.new_context(
+                    user_agent=REQUEST_HEADERS["User-Agent"],
+                    extra_http_headers={"Accept-Language": REQUEST_HEADERS["Accept-Language"]},
+                )
+                page = context.new_page()
+                page.goto(
+                    url,
+                    timeout=REQUEST_TIMEOUT_SECONDS * 1000,
+                    wait_until="domcontentloaded",
+                )
 
-    if response.status_code != 200:
+                try:
+                    page.wait_for_selector(
+                        CLOUDFLARE_CLEARED_SELECTOR, timeout=CLOUDFLARE_WAIT_TIMEOUT_MS
+                    )
+                except PlaywrightTimeoutError:
+                    raise RuntimeError(
+                        f"Timed out after {CLOUDFLARE_WAIT_TIMEOUT_MS // 1000}s waiting for "
+                        "the 22 Kt gold rate table to appear on the page. Either Cloudflare's "
+                        "bot-check didn't clear in time, or Tanishq has redesigned the page."
+                    )
+
+                html = page.content()
+            finally:
+                browser.close()
+    except RuntimeError:
+        raise  # already a clear, specific error from above - pass it straight through
+    except PlaywrightError as e:
         raise RuntimeError(
-            f"Failed to fetch the Tanishq gold rate page.\n"
+            "Failed to fetch the Tanishq gold rate page with a headless browser.\n"
             f"URL: {url}\n"
-            f"HTTP status: {response.status_code}\n"
-            "The site may be temporarily down, or its Cloudflare bot-check "
-            "may have gotten stricter (which could mean cloudscraper needs "
-            "to be updated: `pip install --upgrade cloudscraper`)."
+            f"Details: {e}\n"
+            "If this is the first run on this machine/runner, make sure Playwright's "
+            "browser binaries are installed: playwright install --with-deps chromium"
         )
 
-    return response.text
+    return html
 
 
 def find_22kt_table(soup: BeautifulSoup):
@@ -239,22 +286,10 @@ def main():
 
     except RuntimeError as e:
         # Errors we raised ourselves above (page structure changed, price
-        # not found, etc.) - print a clean message instead of a traceback,
-        # and do NOT touch the existing JSON file.
+        # not found, browser/Cloudflare issues, etc.) - print a clean
+        # message instead of a traceback, and do NOT touch the existing
+        # JSON file.
         print(f"\nERROR: {e}")
-        sys.exit(1)
-    except cloudscraper.exceptions.CloudflareException as e:
-        # cloudscraper couldn't get past Cloudflare's bot-check this time
-        # (e.g. it now requires solving a CAPTCHA, which cloudscraper's
-        # free tier can't do automatically).
-        print(
-            f"\nERROR: Could not get past Tanishq's Cloudflare bot-check: {e}\n"
-            "Try again later, or run: pip install --upgrade cloudscraper"
-        )
-        sys.exit(1)
-    except requests.exceptions.RequestException as e:
-        # Network-level problems (no internet, DNS failure, timeout, etc.)
-        print(f"\nERROR: A network problem occurred while fetching the page: {e}")
         sys.exit(1)
     except Exception as e:
         # Catch-all safety net so the script never crashes with a raw,

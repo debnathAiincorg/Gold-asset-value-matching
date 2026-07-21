@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # `pip install` only installs the playwright package - it doesn't
+      # download the actual browser binary. This installs Chromium plus
+      # the OS-level libraries it needs on the Ubuntu runner.
+      - name: Install Playwright browser (Chromium)
+        run: playwright install --with-deps chromium
+
       # If this step fails (e.g. Cloudflare blocks the runner), the job stops
       # here by default - later steps are skipped and the run is marked failed.
       - name: Fetch today's Tanishq gold rate
