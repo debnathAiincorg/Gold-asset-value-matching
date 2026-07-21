@@ -7,9 +7,13 @@ Purpose:
     so the rate can be tracked over time.
 
 How it works, in plain English:
-    1. Launch a headless Chromium browser (via Playwright), navigate to
-       Tanishq's gold rate page, and wait for Cloudflare's automated
-       bot-check to clear before reading the fully-rendered HTML.
+    1. Launch a headless Chromium browser (via Playwright) disguised to look
+       like a normal desktop Chrome visitor (see "NOTE ON STEALTH" below),
+       navigate to Tanishq's gold rate page, and wait for Cloudflare's
+       automated bot-check to clear before reading the fully-rendered HTML.
+       If this fails with a timeout/navigation/parsing error, retry up to
+       3 times with an 8-second pause in between, since a Cloudflare
+       challenge or a slow page load is often transient.
     2. Parse that HTML with BeautifulSoup, a library that turns raw HTML
        text into something we can search through (find tables, cells, etc.).
     3. Find the "22 Kt Gold Rate" table, then the row for "1 G" (1 gram),
@@ -39,6 +43,16 @@ NOTE ON CLOUDFLARE:
     changes/strengthens its challenge in the future, this may need a longer
     wait or a different clearance signal to watch for.
 
+NOTE ON STEALTH:
+    Beyond just running a real browser, a few extra touches make it look
+    less like an automated one: a `--disable-blink-features=
+    AutomationControlled` launch flag, a User-Agent built from the
+    browser's own reported version (rather than a hardcoded string that
+    quietly goes stale), an Indian viewport/locale/timezone, and an init
+    script that hides the `navigator.webdriver` flag Cloudflare (and other
+    bot-checks) look for. None of this guarantees success, but it reduces
+    the odds of being flagged before the challenge even runs.
+
 Run this manually with:  python fetch_tanishq_gold_rate.py
 """
 
@@ -46,6 +60,7 @@ import os
 import re
 import sys
 import json
+import time
 from datetime import datetime
 
 from playwright.sync_api import (
@@ -67,14 +82,10 @@ OUTPUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetch_ta
 # what was actually on screen (a Cloudflare challenge, an error page, etc.).
 SCREENSHOT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_screenshot.png")
 
-# A realistic browser User-Agent. Some websites block requests that don't
-# have one, since it's a common sign of an automated bot rather than a
-# normal visitor using a browser like Chrome.
+# Headers applied on top of the browser context. The User-Agent itself is
+# NOT listed here - it's built dynamically from the launched browser's own
+# version in fetch_page_html(), so it never goes stale.
 REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-    ),
     "Accept-Language": "en-US,en;q=0.9",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
@@ -97,72 +108,117 @@ CLOUDFLARE_CLEARED_SELECTOR = (
     "h3:has-text('22 Kt Gold Rate'), h4:has-text('22 Kt Gold Rate')"
 )
 
+# Retry settings for transient failures (a Cloudflare challenge that didn't
+# clear in time, a navigation hiccup, or a momentarily malformed page).
+MAX_FETCH_ATTEMPTS = 3
+RETRY_DELAY_SECONDS = 8
+
+
+class RetryableFetchError(RuntimeError):
+    """
+    A timeout/navigation/parsing failure that's worth retrying, since it
+    may just be a transient Cloudflare challenge or network hiccup.
+
+    Deliberately NOT used for setup/environment problems (e.g. missing
+    Playwright browser binaries) - those will fail the same way every time,
+    so retrying them would just waste 24 seconds before giving up anyway.
+    """
+
 
 def fetch_page_html(url: str) -> str:
     """
-    STEP 1: Use a headless Chromium browser (via Playwright) to load the
-    gold rate page and return the fully-rendered HTML.
+    STEP 1: Use a headless Chromium browser (via Playwright), disguised to
+    look like a normal desktop Chrome visitor, to load the gold rate page
+    and return the fully-rendered HTML.
 
     A real browser is used instead of `requests`/`cloudscraper` because it
     actually executes Cloudflare's JavaScript challenge like a normal
     visitor would (see the "NOTE ON CLOUDFLARE" comment at the top of this
-    file), rather than trying to imitate/spoof it.
+    file). The extra stealth touches (see "NOTE ON STEALTH") make it less
+    likely to be flagged as automated before the challenge even runs.
 
-    Raises a RuntimeError with a clear message if the page can't be loaded.
+    Raises RetryableFetchError for timeout/navigation failures (worth
+    retrying), or a plain RuntimeError for setup problems like a missing
+    browser install (not worth retrying).
     """
-    try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+    with sync_playwright() as playwright:
+        try:
+            browser = playwright.chromium.launch(
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+        except PlaywrightError as e:
+            # Launch failures are almost always an environment/setup issue
+            # (e.g. the browser binary was never downloaded) - retrying
+            # won't fix that, so this is a plain, non-retryable RuntimeError.
+            raise RuntimeError(
+                "Failed to launch the headless Chromium browser.\n"
+                f"Details: {e}\n"
+                "Make sure Playwright's browser binaries are installed: "
+                "playwright install --with-deps chromium"
+            )
+
+        try:
+            # Build the User-Agent from the browser's own reported version
+            # instead of hardcoding one, so it never quietly goes stale.
+            chrome_version = browser.version
+            dynamic_user_agent = (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                f"(KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36"
+            )
+
+            context = browser.new_context(
+                user_agent=dynamic_user_agent,
+                viewport={"width": 1366, "height": 768},
+                locale="en-IN",
+                timezone_id="Asia/Kolkata",
+                extra_http_headers={"Accept-Language": REQUEST_HEADERS["Accept-Language"]},
+            )
+            # Headless Chromium normally reports navigator.webdriver = true,
+            # a well-known automation tell that bot-checks look for.
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
+
+            page = context.new_page()
+
             try:
-                context = browser.new_context(
-                    user_agent=REQUEST_HEADERS["User-Agent"],
-                    extra_http_headers={"Accept-Language": REQUEST_HEADERS["Accept-Language"]},
-                )
-                page = context.new_page()
                 page.goto(
                     url,
                     timeout=REQUEST_TIMEOUT_SECONDS * 1000,
                     wait_until="domcontentloaded",
                 )
+            except PlaywrightError as e:
+                raise RetryableFetchError(
+                    f"Failed to navigate to the gold rate page.\nURL: {url}\nDetails: {e}"
+                )
 
+            try:
+                page.wait_for_selector(
+                    CLOUDFLARE_CLEARED_SELECTOR, timeout=CLOUDFLARE_WAIT_TIMEOUT_MS
+                )
+            except PlaywrightTimeoutError:
+                # Capture whatever is currently on screen (Cloudflare
+                # challenge, error page, etc.) to help diagnose why the
+                # wait timed out. Best-effort - a screenshot failure
+                # shouldn't hide the real error below.
+                screenshot_note = ""
                 try:
-                    page.wait_for_selector(
-                        CLOUDFLARE_CLEARED_SELECTOR, timeout=CLOUDFLARE_WAIT_TIMEOUT_MS
-                    )
-                except PlaywrightTimeoutError:
-                    # Capture whatever is currently on screen (Cloudflare
-                    # challenge, error page, etc.) to help diagnose why the
-                    # wait timed out. Best-effort - a screenshot failure
-                    # shouldn't hide the real error below.
-                    screenshot_note = ""
-                    try:
-                        page.screenshot(path=SCREENSHOT_FILE)
-                        screenshot_note = f" A screenshot was saved to '{SCREENSHOT_FILE}'."
-                    except PlaywrightError:
-                        pass
+                    page.screenshot(path=SCREENSHOT_FILE)
+                    screenshot_note = f" A screenshot was saved to '{SCREENSHOT_FILE}'."
+                except PlaywrightError:
+                    pass
 
-                    raise RuntimeError(
-                        f"Timed out after {CLOUDFLARE_WAIT_TIMEOUT_MS // 1000}s waiting for "
-                        "the 22 Kt gold rate table to appear on the page. Either Cloudflare's "
-                        "bot-check didn't clear in time, or Tanishq has redesigned the page."
-                        + screenshot_note
-                    )
+                raise RetryableFetchError(
+                    f"Timed out after {CLOUDFLARE_WAIT_TIMEOUT_MS // 1000}s waiting for "
+                    "the 22 Kt gold rate table to appear on the page. Either Cloudflare's "
+                    "bot-check didn't clear in time, or Tanishq has redesigned the page."
+                    + screenshot_note
+                )
 
-                html = page.content()
-            finally:
-                browser.close()
-    except RuntimeError:
-        raise  # already a clear, specific error from above - pass it straight through
-    except PlaywrightError as e:
-        raise RuntimeError(
-            "Failed to fetch the Tanishq gold rate page with a headless browser.\n"
-            f"URL: {url}\n"
-            f"Details: {e}\n"
-            "If this is the first run on this machine/runner, make sure Playwright's "
-            "browser binaries are installed: playwright install --with-deps chromium"
-        )
-
-    return html
+            return page.content()
+        finally:
+            browser.close()
 
 
 def find_22kt_table(soup: BeautifulSoup):
@@ -229,14 +285,36 @@ def extract_today_price_for_1g(table) -> float:
         price = extract_price_number(today_cell_text)
 
         if price is None:
-            raise RuntimeError(
+            raise RetryableFetchError(
                 "Found the '1 G' row, but couldn't find a rupee amount in "
                 f"its 'Today' cell. Raw cell text was: {today_cell_text!r}"
             )
 
         return price
 
-    raise RuntimeError("Could not find a '1 G' row inside the 22 Kt Gold Rate table.")
+    raise RetryableFetchError("Could not find a '1 G' row inside the 22 Kt Gold Rate table.")
+
+
+def fetch_todays_rate() -> float:
+    """
+    STEPS 1-4: Fetch the page, parse it, and extract today's 1g/22K price.
+
+    Bundled into one function so main() can retry the whole thing as a
+    unit - a transient Cloudflare challenge can just as easily show up as
+    a missing table (STEP 3) as it can a fetch timeout (STEP 1).
+    """
+    html = fetch_page_html(SOURCE_URL)
+    soup = BeautifulSoup(html, "html.parser")
+
+    table = find_22kt_table(soup)
+    if table is None:
+        raise RetryableFetchError(
+            "Could not find the '22 Kt Gold Rate' table on the page. "
+            "Tanishq may have redesigned this page - the script's "
+            "selectors in find_22kt_table() will need updating."
+        )
+
+    return extract_today_price_for_1g(table)
 
 
 def save_result(data: dict, path: str) -> None:
@@ -252,31 +330,31 @@ def save_result(data: dict, path: str) -> None:
 def main():
     try:
         # -----------------------------------------------------------------
-        # STEP 1: Fetch the page HTML.
+        # STEPS 1-4: Fetch, parse, and extract today's rate - retrying up
+        # to MAX_FETCH_ATTEMPTS times on transient timeout/navigation/
+        # parsing errors (e.g. a Cloudflare challenge that didn't clear in
+        # time). Setup problems like a missing browser install raise a
+        # plain RuntimeError instead, which skips the retry loop entirely.
         # -----------------------------------------------------------------
-        print(f"Fetching gold rate page: {SOURCE_URL}")
-        html = fetch_page_html(SOURCE_URL)
+        rate_inr = None
+        last_retryable_error = None
+        for attempt in range(1, MAX_FETCH_ATTEMPTS + 1):
+            print(f"Fetching gold rate page (attempt {attempt}/{MAX_FETCH_ATTEMPTS}): {SOURCE_URL}")
+            try:
+                rate_inr = fetch_todays_rate()
+                break
+            except RetryableFetchError as e:
+                last_retryable_error = e
+                if attempt < MAX_FETCH_ATTEMPTS:
+                    print(
+                        f"Attempt {attempt}/{MAX_FETCH_ATTEMPTS} failed: {e}\n"
+                        f"This may be a transient Cloudflare challenge - retrying in "
+                        f"{RETRY_DELAY_SECONDS}s...\n"
+                    )
+                    time.sleep(RETRY_DELAY_SECONDS)
 
-        # -----------------------------------------------------------------
-        # STEP 2: Parse the HTML with BeautifulSoup.
-        # -----------------------------------------------------------------
-        soup = BeautifulSoup(html, "html.parser")
-
-        # -----------------------------------------------------------------
-        # STEP 3: Find the 22 Kt Gold Rate table.
-        # -----------------------------------------------------------------
-        table = find_22kt_table(soup)
-        if table is None:
-            raise RuntimeError(
-                "Could not find the '22 Kt Gold Rate' table on the page. "
-                "Tanishq may have redesigned this page - the script's "
-                "selectors in find_22kt_table() will need updating."
-            )
-
-        # -----------------------------------------------------------------
-        # STEP 4 + 5: Extract and clean the "1 G" / "Today" price.
-        # -----------------------------------------------------------------
-        rate_inr = extract_today_price_for_1g(table)
+        if rate_inr is None:
+            raise last_retryable_error
 
         # -----------------------------------------------------------------
         # STEP 6: Build the result and save it to JSON.
