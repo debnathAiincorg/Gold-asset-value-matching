@@ -648,11 +648,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     // chronologically - no date parsing needed.
     var fromDate = fromDateInput.value;
     var toDate = toDateInput.value;
+    // With only one of the two dates set, treat it as a single-day filter
+    // (that date only) rather than an open-ended range - so picking just
+    // "From" doesn't silently show everything after it.
+    var effectiveFrom = fromDate;
+    var effectiveTo = toDate;
+    if (fromDate && !toDate) {
+      effectiveTo = fromDate;
+    } else if (toDate && !fromDate) {
+      effectiveFrom = toDate;
+    }
 
     var filtered = rows.filter(function (row) {
       if (hideSold && row.isSold) return false;
-      if (fromDate && row.date < fromDate) return false;
-      if (toDate && row.date > toDate) return false;
+      if (effectiveFrom && row.date < effectiveFrom) return false;
+      if (effectiveTo && row.date > effectiveTo) return false;
       if (!term) return true;
       var haystack = (row.product + " " + row.productSiNo + " " + row.vendor + " " + row.notes).toLowerCase();
       return haystack.indexOf(term) !== -1;
