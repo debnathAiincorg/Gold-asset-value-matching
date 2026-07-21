@@ -298,7 +298,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     padding: 16px 18px;
   }
   .stat-label {
-    font-size: 16px;
+    font-size: 16.8px;
     color: var(--text-secondary);
     margin-bottom: 6px;
   }
