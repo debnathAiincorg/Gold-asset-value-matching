@@ -52,7 +52,7 @@ FILE_GUID = "2009AE34-6542-42C6-9E4F-3E2DDE8D7F84"
 # If you already know the sheet/tab name you want, put it here (e.g. "Sheet1").
 # Leave as None to just use the FIRST worksheet in the workbook.
 # The script will always print all worksheet names first so you can confirm.
-SHEET_NAME = None
+SHEET_NAME = "Sheet1"
 
 # --- Output file -------------------------------------------------------------
 OUTPUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetch_excel_data.json")
