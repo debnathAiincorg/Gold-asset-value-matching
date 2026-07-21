@@ -147,6 +147,7 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
         rows.append({
             "date": purchase_date,
             "product": safe_text(record.get("Product  Details")),
+            "productSiNo": safe_text(record.get("Product Si No")),
             "vendor": safe_text(record.get("Vendor Name")),
             "weight": round(net_weight_gm, 3),
             "purity": purity_karat,
@@ -477,7 +478,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   <section class="table-section">
     <div class="table-controls">
-      <input type="search" id="searchInput" placeholder="Search product, vendor, or notes...">
+      <input type="search" id="searchInput" placeholder="Search product, Si No, vendor, or notes...">
       <label class="toggle"><input type="checkbox" id="hideSoldCheckbox"> Hide sold items</label>
       <span class="row-count" id="rowCount"></span>
     </div>
@@ -487,6 +488,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           <tr>
             <th data-key="date" tabindex="0">Date<span class="sort-indicator"></span></th>
             <th data-key="product">Product Details</th>
+            <th data-key="productSiNo">Product Si No</th>
             <th data-key="vendor">Vendor Name</th>
             <th data-key="weight" class="num">Net Weight (g)</th>
             <th data-key="purity" class="num">Purity</th>
@@ -567,6 +569,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     addCell(row.date, "date-col");
     addCell(row.product);
+    addCell(row.productSiNo);
     addCell(row.vendor);
     addCell(row.weight.toFixed(3), "num");
     addCell(formatKarat(row.purity), "num");
@@ -596,7 +599,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     var filtered = rows.filter(function (row) {
       if (hideSold && row.isSold) return false;
       if (!term) return true;
-      var haystack = (row.product + " " + row.vendor + " " + row.notes).toLowerCase();
+      var haystack = (row.product + " " + row.productSiNo + " " + row.vendor + " " + row.notes).toLowerCase();
       return haystack.indexOf(term) !== -1;
     });
 
@@ -659,7 +662,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     if (visibleRows.length === 0) {
       var tr = document.createElement("tr");
       var td = document.createElement("td");
-      td.colSpan = 10;
+      td.colSpan = 11;
       td.className = "empty-state";
       td.textContent = "No items match your search.";
       tr.appendChild(td);
