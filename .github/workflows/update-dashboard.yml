@@ -1,6 +1,8 @@
 name: Update Gold Dashboard
 
 on:
+  repository_dispatch:
+    types: [update-gold-dashboard]
   schedule:
     # 30 2 * * * (UTC) = 08:00 IST every day (IST is UTC+5:30)
     - cron: "30 2 * * *"
