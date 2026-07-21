@@ -25,7 +25,8 @@ Then double-click Gold_asset_value_matching.html (or open it in a browser) to vi
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------------------------
 # STEP 0: CONFIGURATION - file paths, all relative to this script's folder.
@@ -264,11 +265,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     margin: 0 0 4px;
     font-size: 28px;
     font-weight: 600;
+    text-align: center;
   }
   header.dash-header .subtitle {
     margin: 0;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 1.15rem;
+    text-align: center;
   }
 
   .stale-banner {
@@ -696,11 +699,17 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
     the per-item row data (embedded as JSON for the page's own JavaScript
     to sort/filter/render).
     """
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    # Explicitly convert to IST (UTC+5:30) rather than relying on the
+    # server's local timezone - this runs on GitHub Actions (UTC) as well
+    # as local machines, and the displayed time should always read as IST.
+    now_ist = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Kolkata"))
+    today_str = now_ist.strftime("%Y-%m-%d")
+    hour_12 = now_ist.strftime("%I").lstrip("0") or "12"
+    ist_time_str = f"{hour_12}:{now_ist.strftime('%M %p')}"
     rate_fetched_date = safe_text(rate_info.get("date_fetched")) or "unknown date"
 
     subtitle = (
-        f"Generated on {today_str} &middot; "
+        f"Generated on {today_str} at {ist_time_str} IST &middot; "
         f"Using 22K rate {format_inr(todays_rate)}/gram (fetched {rate_fetched_date})"
     )
 
