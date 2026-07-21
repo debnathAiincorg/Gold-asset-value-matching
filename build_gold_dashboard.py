@@ -245,9 +245,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     --good-tint:      #eaf6ea;
     --critical-text:  #d03b3b;
     --critical-tint:  #fbecec;
-    --warning-text:   #6b4e00;
-    --warning-tint:   #fff4d6;
-    --warning-border: #f0c96b;
+    --warning-text:   #8a6a1f;
+    --warning-tint:   #fdf6e3;
+    --warning-border: #e8d9a8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -264,9 +264,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       --good-tint:      #123018;
       --critical-text:  #e66767;
       --critical-tint:  #341616;
-      --warning-text:   #ffd873;
-      --warning-tint:   #3a2e0a;
-      --warning-border: #6b5312;
+      --warning-text:   #d9b878;
+      --warning-tint:   #2e2712;
+      --warning-border: #4a3d20;
     }
   }
 
@@ -300,15 +300,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     text-align: center;
   }
 
-  .stale-banner {
-    margin-bottom: 20px;
-    padding: 14px 18px;
-    border-radius: 10px;
+  .stale-note {
+    display: block;
+    width: fit-content;
+    margin: 8px auto 0;
+    padding: 3px 10px;
+    border-radius: 6px;
     background: var(--warning-tint);
     border: 1px solid var(--warning-border);
     color: var(--warning-text);
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 500;
   }
 
   .stat-grid {
@@ -488,10 +490,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <div class="dashboard">
-  __STALE_BANNER__
   <header class="dash-header">
     <h1>Gold Inventory Dashboard</h1>
     <p class="subtitle">__SUBTITLE__</p>
+    __STALE_BANNER__
   </header>
 
   <section class="stat-grid">
@@ -806,11 +808,11 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
     stale_banner = ""
     if bool(rate_info.get("is_stale")):
         stale_banner = (
-            '<div class="stale-banner">'
+            '<p class="stale-note">'
             "⚠ Gold rate could not be fetched today — showing last known rate "
             f"from {rate_fetched_date}. Profit/Loss figures below may not reflect "
             "today's actual market price."
-            "</div>"
+            "</p>"
         )
 
     total_pl = totals["total_profit_loss"]
