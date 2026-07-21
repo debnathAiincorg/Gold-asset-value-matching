@@ -93,6 +93,7 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
     rows = []
 
     for record in inventory:
+        purchase_date = safe_text(record.get("date of Purchase"))
         net_weight_gm = safe_number(record.get("Net Weight Gm"))
         purchase_rate = safe_number(record.get("Purchase gold Rate"))
         purity_karat = safe_number(record.get("Purity Karat"))
@@ -118,6 +119,7 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
         is_sold = "sold" in notes.lower() or "sold" in remarks.lower()
 
         rows.append({
+            "date": purchase_date,
             "product": safe_text(record.get("Product  Details")),
             "vendor": safe_text(record.get("Vendor Name")),
             "weight": round(net_weight_gm, 3),
@@ -351,7 +353,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     white-space: nowrap;
   }
 
-  .table-scroll { overflow-x: auto; }
+  .table-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 600px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-muted) var(--surface-2);
+  }
+  .table-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .table-scroll::-webkit-scrollbar-track { background: var(--surface-2); }
+  .table-scroll::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 6px;
+    border: 2px solid var(--surface-2);
+  }
+  .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
   table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 900px; }
   thead th {
@@ -361,13 +377,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-secondary);
+    background: var(--surface-1);
     border-bottom: 1px solid var(--gridline);
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
   thead th:hover { color: var(--text-primary); }
-  thead th.num, td.num { text-align: right; }
+  thead th.num, td.num { text-align: right; white-space: nowrap; }
+  td.date-col { white-space: nowrap; }
   .sort-indicator { font-size: 10px; margin-left: 4px; color: var(--text-muted); }
 
   tbody td {
@@ -407,20 +428,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <section class="stat-grid">
     <div class="stat-tile">
       <div class="stat-label">Total Items</div>
-      <div class="stat-value">__TOTAL_ITEMS__</div>
+      <div class="stat-value" id="statTotalItems">__TOTAL_ITEMS__</div>
     </div>
     <div class="stat-tile">
       <div class="stat-label">Total Our Amount</div>
-      <div class="stat-value">__TOTAL_OUR_AMOUNT__</div>
+      <div class="stat-value" id="statOurAmount">__TOTAL_OUR_AMOUNT__</div>
     </div>
     <div class="stat-tile">
       <div class="stat-label">Total Today's Value</div>
-      <div class="stat-value">__TOTAL_TODAYS_VALUE__</div>
+      <div class="stat-value" id="statTodaysValue">__TOTAL_TODAYS_VALUE__</div>
     </div>
-    <div class="stat-tile __TOTAL_PL_CLASS__">
+    <div class="stat-tile __TOTAL_PL_CLASS__" id="plTile">
       <div class="stat-label">Total Profit / Loss</div>
-      <div class="stat-value">__TOTAL_PL_AMOUNT__<span class="stat-delta">(__TOTAL_PL_PCT__%)</span></div>
-      __SOLD_CAPTION__
+      <div class="stat-value"><span id="statPlAmount">__TOTAL_PL_AMOUNT__</span><span class="stat-delta" id="statPlPct">(__TOTAL_PL_PCT__%)</span></div>
+      <div class="stat-caption" id="soldCaption"__SOLD_CAPTION_STYLE__>__SOLD_CAPTION_TEXT__</div>
     </div>
   </section>
 
@@ -434,6 +455,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <table id="inventoryTable">
         <thead>
           <tr>
+            <th data-key="date" tabindex="0">Date<span class="sort-indicator"></span></th>
             <th data-key="product" tabindex="0">Product Details<span class="sort-indicator"></span></th>
             <th data-key="vendor" tabindex="0">Vendor Name<span class="sort-indicator"></span></th>
             <th data-key="weight" class="num" tabindex="0">Net Weight (g)<span class="sort-indicator"></span></th>
@@ -463,6 +485,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   var searchInput = document.getElementById("searchInput");
   var hideSoldCheckbox = document.getElementById("hideSoldCheckbox");
   var rowCountEl = document.getElementById("rowCount");
+
+  var statTotalItemsEl = document.getElementById("statTotalItems");
+  var statOurAmountEl = document.getElementById("statOurAmount");
+  var statTodaysValueEl = document.getElementById("statTodaysValue");
+  var statPlAmountEl = document.getElementById("statPlAmount");
+  var statPlPctEl = document.getElementById("statPlPct");
+  var plTileEl = document.getElementById("plTile");
+  var soldCaptionEl = document.getElementById("soldCaption");
 
   var sortKey = null;
   var sortAscending = true;
@@ -499,6 +529,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       return td;
     }
 
+    addCell(row.date, "date-col");
     addCell(row.product);
     addCell(row.vendor);
     addCell(row.weight.toFixed(3), "num");
@@ -550,6 +581,41 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     return filtered;
   }
 
+  // Recompute the summary cards from whichever rows are currently visible
+  // (post search/hide-sold filtering) - so the cards always reflect the
+  // same set of rows shown in the table below them.
+  function updateSummary(visibleRows) {
+    var totalOurAmount = 0;
+    var totalTodaysValue = 0;
+    var soldCount = 0;
+
+    visibleRows.forEach(function (row) {
+      totalOurAmount += row.ourAmount;
+      totalTodaysValue += row.todaysValue;
+      if (row.isSold) soldCount++;
+    });
+
+    var totalPl = totalTodaysValue - totalOurAmount;
+    var totalPlPct = totalOurAmount ? (totalPl / totalOurAmount) * 100 : 0;
+
+    statTotalItemsEl.textContent = visibleRows.length;
+    statOurAmountEl.textContent = formatINR(totalOurAmount);
+    statTodaysValueEl.textContent = formatINR(totalTodaysValue);
+    statPlAmountEl.textContent = formatINR(totalPl);
+    statPlPctEl.textContent = "(" + (totalPlPct >= 0 ? "+" : "") + totalPlPct.toFixed(2) + "%)";
+
+    plTileEl.classList.toggle("positive", totalPl >= 0);
+    plTileEl.classList.toggle("negative", totalPl < 0);
+
+    if (soldCount > 0) {
+      soldCaptionEl.textContent = "Includes " + soldCount + " sold item(s) still counted in these totals";
+      soldCaptionEl.style.display = "";
+    } else {
+      soldCaptionEl.textContent = "";
+      soldCaptionEl.style.display = "none";
+    }
+  }
+
   function render() {
     var visibleRows = currentRows();
 
@@ -557,7 +623,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     if (visibleRows.length === 0) {
       var tr = document.createElement("tr");
       var td = document.createElement("td");
-      td.colSpan = 9;
+      td.colSpan = 10;
       td.className = "empty-state";
       td.textContent = "No items match your search.";
       tr.appendChild(td);
@@ -569,6 +635,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
 
     rowCountEl.textContent = "Showing " + visibleRows.length + " of " + rows.length + " items";
+    updateSummary(visibleRows);
   }
 
   function updateSortIndicators() {
@@ -648,12 +715,13 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
     total_pl_pct = totals["total_profit_loss_pct"]
     total_pl_pct_str = f"{'+' if total_pl_pct >= 0 else ''}{total_pl_pct:.2f}"
 
-    sold_caption = ""
+    sold_caption_text = ""
+    sold_caption_style = ' style="display:none;"'
     if totals["sold_items"]:
-        sold_caption = (
-            f'<div class="stat-caption">Includes {totals["sold_items"]} '
-            f'sold item(s) still counted in these totals</div>'
+        sold_caption_text = (
+            f'Includes {totals["sold_items"]} sold item(s) still counted in these totals'
         )
+        sold_caption_style = ""
 
     # Embed the row data as JSON inside a <script type="application/json"> tag.
     # Escaping "</" as "<\/" stops a stray "</script" inside the data (e.g. in
@@ -669,7 +737,8 @@ def build_html(rows: list, totals: dict, todays_rate: float, rate_info: dict) ->
     html = html.replace("__TOTAL_PL_CLASS__", total_pl_class)
     html = html.replace("__TOTAL_PL_AMOUNT__", total_pl_amount)
     html = html.replace("__TOTAL_PL_PCT__", total_pl_pct_str)
-    html = html.replace("__SOLD_CAPTION__", sold_caption)
+    html = html.replace("__SOLD_CAPTION_TEXT__", sold_caption_text)
+    html = html.replace("__SOLD_CAPTION_STYLE__", sold_caption_style)
     html = html.replace("__GENERATED_AT__", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     html = html.replace("__ROWS_JSON__", rows_json)
 
