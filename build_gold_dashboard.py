@@ -383,6 +383,44 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     white-space: nowrap;
   }
 
+  .date-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .date-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .date-field input[type="date"] {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--gridline);
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .clear-dates-btn {
+    padding: 7px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--gridline);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .clear-dates-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
   .table-scroll {
     overflow-x: auto;
     overflow-y: auto;
@@ -480,6 +518,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="table-controls">
       <input type="search" id="searchInput" placeholder="Search product, Si No, vendor, or notes...">
       <label class="toggle"><input type="checkbox" id="hideSoldCheckbox"> Hide sold items</label>
+      <div class="date-filter">
+        <label class="date-field">From Date<input type="date" id="fromDateInput"></label>
+        <label class="date-field">To Date<input type="date" id="toDateInput"></label>
+        <button type="button" id="clearDatesBtn" class="clear-dates-btn">Clear Dates</button>
+      </div>
       <span class="row-count" id="rowCount"></span>
     </div>
     <div class="table-scroll">
@@ -516,6 +559,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   var tableBody = document.getElementById("tableBody");
   var searchInput = document.getElementById("searchInput");
   var hideSoldCheckbox = document.getElementById("hideSoldCheckbox");
+  var fromDateInput = document.getElementById("fromDateInput");
+  var toDateInput = document.getElementById("toDateInput");
+  var clearDatesBtn = document.getElementById("clearDatesBtn");
   var rowCountEl = document.getElementById("rowCount");
 
   var statTotalItemsEl = document.getElementById("statTotalItems");
@@ -595,9 +641,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   function currentRows() {
     var term = searchInput.value.trim().toLowerCase();
     var hideSold = hideSoldCheckbox.checked;
+    // Both the row data and these <input type="date"> values are plain
+    // "YYYY-MM-DD" strings, so a direct string comparison already sorts
+    // chronologically - no date parsing needed.
+    var fromDate = fromDateInput.value;
+    var toDate = toDateInput.value;
 
     var filtered = rows.filter(function (row) {
       if (hideSold && row.isSold) return false;
+      if (fromDate && row.date < fromDate) return false;
+      if (toDate && row.date > toDate) return false;
       if (!term) return true;
       var haystack = (row.product + " " + row.productSiNo + " " + row.vendor + " " + row.notes).toLowerCase();
       return haystack.indexOf(term) !== -1;
@@ -711,6 +764,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   searchInput.addEventListener("input", render);
   hideSoldCheckbox.addEventListener("change", render);
+  fromDateInput.addEventListener("change", render);
+  toDateInput.addEventListener("change", render);
+  clearDatesBtn.addEventListener("click", function () {
+    fromDateInput.value = "";
+    toDateInput.value = "";
+    render();
+  });
 
   updateSortIndicators();
   render();
