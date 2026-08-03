@@ -1,0 +1,631 @@
+<title>22K Gold Rate Dashboard</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    /* Reference palette, light mode -- validated with scripts/validate_palette.js
+       (all six checks pass; see conversation for the run). Defined at :root
+       (not .viz-root) so both `body` and `.viz-root` can see them -- CSS
+       custom properties only inherit downward. */
+    --surface-1: #fcfcfb;
+    --surface-2: #f0efec;
+    --page-plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.1);
+    /* Categorical slots, fixed order, assigned by source name (never by
+       array position) so identity survives a source dropping out. */
+    --series-tanishq: #b8860b;
+    --series-tanishq-hover: #cb9b27;
+    --series-abp: #8e2439;
+    --series-abp-hover: #a53a4c;
+    --series-toi: #2a5fa5;
+    --series-toi-hover: #3f72b8;
+    --series-goodreturns: #2e7d32;
+    --series-goodreturns-hover: #43974a;
+    --series-goldpriceindia: #6a3fa0;
+    --series-goldpriceindia-hover: #8058b4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19;
+      --surface-2: #232322;
+      --page-plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.1);
+      --series-tanishq: #b08326;
+      --series-tanishq-hover: #c99a3a;
+      --series-abp: #c9536a;
+      --series-abp-hover: #d66c80;
+      --series-toi: #4c82c4;
+      --series-toi-hover: #6396d3;
+      --series-goodreturns: #47a34b;
+      --series-goodreturns-hover: #5cb860;
+      --series-goldpriceindia: #9b6fd1;
+      --series-goldpriceindia-hover: #ac86da;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html {
+    /* Raises the rem base so every rem-sized rule below scales up together;
+       explicit bumps on top of this are reserved for the elements called
+       out as needing extra prominence (title/subtitle, chart, table). */
+    font-size: 20px;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body {
+    /* Fit everything within the viewport -- no page-level scrollbar. Stacked
+       column: the nav bar is fixed-size, .content-wrap (flex: 1 1 auto)
+       absorbs whatever vertical space is left after it. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Nav bar - same markup/classes/px sizing as Gold_asset_value_matching.html
+     and gold_all_ditails_with_table.html. Deliberately in px, not rem, so it
+     stays the same visual size as on those pages despite this page's own
+     html { font-size: 20px } rem base (set above, for the chart/table). */
+  nav.top-nav {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 28px;
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top-nav .brand {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  nav.top-nav .nav-links {
+    display: flex;
+    gap: 8px;
+  }
+  nav.top-nav .nav-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--gridline);
+    background: var(--surface-2);
+  }
+  nav.top-nav .nav-link:hover {
+    border-color: var(--text-muted);
+  }
+  nav.top-nav .nav-link.active {
+    background: var(--text-primary);
+    color: var(--page-plane);
+    border-color: var(--text-primary);
+  }
+
+  .content-wrap {
+    flex: 1 1 auto;
+    /* min-height: 0 keeps this clamped to its flex-allocated size instead
+       of growing to fit an overflowing child -- that's what makes
+       overflow-y: auto below actually able to show a scrollbar rather than
+       just silently expanding past the nav bar. */
+    min-height: 0;
+    padding: 4px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+  }
+
+  .viz-root {
+    width: 100%;
+    max-width: 880px;
+    /* align-self: flex-start opts out of the default stretch behavior,
+       which would otherwise pin this to exactly .content-wrap's height no
+       matter what min-height says. With flex-start, min-height: 100% acts
+       as a true floor (max of natural content size vs. 100%) -- fills the
+       available area when there's room (the common case), but is free to
+       grow taller instead of being force-squeezed when there isn't;
+       .content-wrap's scrollbar handles the rest rather than every card
+       getting silently crushed or clipped. */
+    align-self: flex-start;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    flex: 0 0 auto;
+  }
+  header h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  header .subtitle {
+    color: var(--text-secondary);
+    font-size: 1.35rem;
+    margin: 0 0 2px;
+  }
+
+  .notice {
+    flex: 0 0 auto;
+    display: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--series-abp);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .notice code {
+    background: var(--page-plane);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .card {
+    flex: 0 0 auto;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 18px;
+    margin-bottom: 6px;
+  }
+  .card h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 1px;
+  }
+  .card .card-caption {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 0 0 4px;
+  }
+
+  /* The chart card is the one flexible element: it grows to fill leftover
+     vertical space on a tall viewport and shrinks (down to chart-wrap's
+     min-height) on a short one. Given extra padding of its own (beyond the
+     shared .card base) so it reads as the visually dominant container. */
+  .chart-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 20px;
+  }
+  .chart-card h2,
+  .chart-card .card-caption {
+    flex: 0 0 auto;
+  }
+  .chart-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 220px;
+  }
+
+  /* The table card is deliberately the compact/secondary counterpart --
+     tighter padding and margins than the shared .card base, on top of
+     shrinking further as its own content (row count) grows or shrinks. */
+  .table-card {
+    padding: 2px 12px;
+  }
+  .table-card h2 {
+    margin: 0;
+  }
+  .table-card .card-caption {
+    margin: 0 0 1px;
+  }
+  .table-card th,
+  .table-card td {
+    padding: 1px 6px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.05rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 3px 8px;
+    border-bottom: 1px solid var(--gridline);
+  }
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  td.num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .source-cell { display: flex; align-items: center; }
+  .note {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0;
+  }
+
+  footer.footnote {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+
+  .empty-state {
+    color: var(--text-secondary);
+    font-size: 1rem;
+  }
+</style>
+
+<nav class="top-nav">
+  <span class="brand">Gold Value Matching</span>
+  <div class="nav-links">
+    <a href="Gold_asset_value_matching.html" class="nav-link">Home</a>
+    <a href="gold_all_ditails_with_table.html" class="nav-link">Our Gold full details</a>
+    <a href="compair_to_other_rate.html" class="nav-link active">Compare to Other Rates</a>
+  </div>
+</nav>
+
+<div class="content-wrap">
+  <div class="viz-root">
+    <header>
+      <h1>22K Gold Rate (per gram)</h1>
+      <p class="subtitle" id="subtitle">Loading&hellip;</p>
+    </header>
+
+    <div class="notice" id="fallback-notice"></div>
+    <div class="notice" id="missing-sources-notice"></div>
+
+    <section class="card chart-card">
+      <h2>Rate comparison</h2>
+      <p class="card-caption">₹ per gram, by source</p>
+      <div class="chart-wrap">
+        <canvas id="rate-chart"></canvas>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <h2>Summary</h2>
+      <p class="card-caption">Same figures as the chart, in table form</p>
+      <table id="summary-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Coverage</th>
+            <th style="text-align: right">₹ / gram</th>
+          </tr>
+        </thead>
+        <tbody id="summary-body"></tbody>
+      </table>
+    </section>
+
+    <footer class="footnote" id="footnote"></footer>
+  </div>
+</div>
+
+<!--
+  Embedded fallback snapshot, used only if fetch('compair_to_other_rate.json') fails
+  -- normally just when this file is opened directly (file://) instead of via
+  the hosted GitHub Pages URL. This is a point-in-time snapshot and will NOT
+  auto-update; the live, always-current version is served from GitHub Pages
+  (see LIVE_PAGES_URL below / README.md), where the fetch() works normally
+  over HTTPS. Placed before the main script so it's guaranteed to be in the
+  DOM before any fetch().catch() can run (fetch on file:// rejects fast
+  enough to otherwise race parsing).
+-->
+<script type="application/json" id="embedded-data">
+{
+  "timestamp": "08-Jul-2026 05:48 PM",
+  "sources": [
+    { "name": "Tanishq", "rate_per_gram": 13165, "note": null, "scope": "national" },
+    { "name": "ABP Live", "rate_per_gram": 13260.1, "note": "converted from per-10g", "scope": "city" },
+    { "name": "Times of India", "rate_per_gram": 13245, "note": null, "scope": "city" },
+    { "name": "Goodreturns", "rate_per_gram": 13245, "note": null, "scope": "city" },
+    { "name": "GoldPriceIndia", "rate_per_gram": 13425, "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages", "scope": "city" }
+  ]
+}
+</script>
+
+<script>
+  // Hosted GitHub Pages URL, shown in the fallback notice below when this
+  // file is opened directly instead of via Pages. Update if the repo/Pages
+  // path ever changes.
+  const LIVE_PAGES_URL = "https://debnathaiincorg.github.io/Gold-Dashboard/compair_to_other_rate.html";
+
+  // Fixed categorical color per source name -- never by array position, so
+  // identity holds even if a source is missing from a given run's JSON.
+  const SOURCE_COLOR = {
+    "Tanishq": { base: "--series-tanishq", hover: "--series-tanishq-hover" },
+    "ABP Live": { base: "--series-abp", hover: "--series-abp-hover" },
+    "Times of India": { base: "--series-toi", hover: "--series-toi-hover" },
+    "Goodreturns": { base: "--series-goodreturns", hover: "--series-goodreturns-hover" },
+    "GoldPriceIndia": { base: "--series-goldpriceindia", hover: "--series-goldpriceindia-hover" },
+  };
+  const SCOPE_LABEL = { national: "National", city: "Kolkata-specific" };
+
+  // Full expected set of sources -- SOURCE_COLOR's keys are the source of
+  // truth since every source needs a fixed chart color anyway. Used to
+  // detect a source silently dropping out of data.sources (fetch failed
+  // for that source this run) so render() can call it out explicitly.
+  const EXPECTED_SOURCES = Object.keys(SOURCE_COLOR);
+
+  // How often to re-fetch compair_to_other_rate.json while the tab stays open.
+  // Only applies to the live-fetch path -- see the fetchLiveData() call site.
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Chart.js instance, tracked so a periodic re-render can destroy the old
+  // one first -- calling `new Chart()` again on the same canvas without
+  // destroying the previous instance throws ("Canvas is already in use").
+  let chartInstance = null;
+
+  function cssVar(name) {
+    const root = document.querySelector(".viz-root");
+    return getComputedStyle(root).getPropertyValue(name).trim();
+  }
+
+  function formatRupees(n) {
+    return "₹" + Math.round(n).toLocaleString("en-IN");
+  }
+
+  function render(data, { fromFallback } = {}) {
+    document.getElementById("subtitle").textContent =
+      `Last updated: ${data.timestamp}` + (fromFallback ? " (embedded snapshot)" : "");
+
+    const notice = document.getElementById("fallback-notice");
+    if (fromFallback) {
+      notice.style.display = "block";
+      notice.innerHTML =
+        "Could not fetch <code>compair_to_other_rate.json</code> live (browsers block " +
+        "local-file fetches for security), so this is showing a snapshot " +
+        "embedded when the dashboard was built -- it may be stale. This page " +
+        "is designed to be served via GitHub Pages, where the live fetch " +
+        "works normally. For current data, open the hosted version instead: " +
+        `<a href="${LIVE_PAGES_URL}">${LIVE_PAGES_URL}</a>.`;
+    }
+
+    const sources = data.sources || [];
+
+    // Independent of the fallback-notice above (that one's about the whole
+    // JSON fetch failing; this one's about individual sources dropping out
+    // of an otherwise-successful fetch) -- both can be visible at once.
+    const presentNames = new Set(sources.map((s) => s.name));
+    const missingSources = EXPECTED_SOURCES.filter((name) => !presentNames.has(name));
+    const missingNotice = document.getElementById("missing-sources-notice");
+    if (missingSources.length > 0) {
+      missingNotice.style.display = "block";
+      const names = missingSources.map((name) => `<code>${name}</code>`).join(", ");
+      missingNotice.innerHTML =
+        `${names}: unavailable in this update (fetch failed) -- showing other sources only.`;
+    } else {
+      missingNotice.style.display = "none";
+      missingNotice.innerHTML = "";
+    }
+
+    if (sources.length === 0) {
+      document.querySelector(".chart-wrap").innerHTML =
+        '<p class="empty-state">No source data available in compair_to_other_rate.json.</p>';
+      document.getElementById("summary-body").innerHTML =
+        '<tr><td colspan="3" class="empty-state">No data.</td></tr>';
+      return;
+    }
+
+    // --- Chart -----------------------------------------------------------
+    const labels = sources.map((s) => s.name);
+    const values = sources.map((s) => s.rate_per_gram);
+    const bg = sources.map((s) => cssVar(SOURCE_COLOR[s.name]?.base || "--series-toi"));
+    const bgHover = sources.map((s) => cssVar(SOURCE_COLOR[s.name]?.hover || "--series-toi-hover"));
+    const textPrimary = cssVar("--text-primary");
+    const textMuted = cssVar("--text-muted");
+    const gridline = cssVar("--gridline");
+    const baseline = cssVar("--baseline");
+
+    // Draws the value on the cap of each bar -- "Columns -> value on the cap".
+    const valueLabelPlugin = {
+      id: "valueLabels",
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          ctx.save();
+          ctx.fillStyle = textPrimary;
+          ctx.font = "700 22px system-ui, -apple-system, 'Segoe UI', sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(formatRupees(values[i]), bar.x, bar.y - 8);
+          ctx.restore();
+        });
+      },
+    };
+
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    chartInstance = new Chart(document.getElementById("rate-chart"), {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "₹ per gram",
+            data: values,
+            backgroundColor: bg,
+            hoverBackgroundColor: bgHover,
+            borderRadius: 6,
+            borderSkipped: "bottom",
+            maxBarThickness: 46,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 32 } },
+        plugins: {
+          legend: { display: false },
+          // No internal chart title -- it duplicated the "Last updated" line
+          // already shown in the page header right above this card, so it's
+          // dropped to make room for the larger bars/labels below.
+          title: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `₹${Math.round(ctx.parsed.y).toLocaleString("en-IN")} / gram`,
+              afterLabel: (ctx) => {
+                const s = sources[ctx.dataIndex];
+                return SCOPE_LABEL[s.scope] ? `(${SCOPE_LABEL[s.scope]})` : "";
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { color: baseline },
+            ticks: { color: textPrimary, font: { size: 19, weight: "600" } },
+          },
+          y: {
+            beginAtZero: false,
+            grace: "10%",
+            title: {
+              display: true,
+              text: "₹ per gram",
+              color: textMuted,
+              font: { size: 13 },
+            },
+            grid: { color: gridline, drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: textMuted,
+              font: { size: 12 },
+              callback: (v) => v.toLocaleString("en-IN"),
+            },
+          },
+        },
+      },
+      plugins: [valueLabelPlugin],
+    });
+
+    // --- Table -------------------------------------------------------------
+    const tbody = document.getElementById("summary-body");
+    tbody.innerHTML = "";
+    sources.forEach((s) => {
+      const tr = document.createElement("tr");
+
+      const sourceTd = document.createElement("td");
+      const wrap = document.createElement("span");
+      wrap.className = "source-cell";
+      const dot = document.createElement("span");
+      dot.className = "swatch";
+      dot.style.background = cssVar(SOURCE_COLOR[s.name]?.base || "--series-toi");
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = s.name; // textContent -- source names are untrusted data
+      wrap.appendChild(dot);
+      wrap.appendChild(nameSpan);
+      sourceTd.appendChild(wrap);
+      if (s.note) {
+        const noteEl = document.createElement("span");
+        noteEl.className = "note";
+        noteEl.textContent = s.note;
+        sourceTd.appendChild(noteEl);
+      }
+
+      const scopeTd = document.createElement("td");
+      scopeTd.textContent = SCOPE_LABEL[s.scope] || s.scope || "—";
+
+      const rateTd = document.createElement("td");
+      rateTd.className = "num";
+      rateTd.textContent = formatRupees(s.rate_per_gram);
+
+      tr.appendChild(sourceTd);
+      tr.appendChild(scopeTd);
+      tr.appendChild(rateTd);
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("footnote").textContent =
+      "Tanishq is a national rate; the other four are Kolkata-specific, from " +
+      "separate data feeds, so figures won't match exactly.";
+  }
+
+  function loadEmbeddedFallback() {
+    const el = document.getElementById("embedded-data");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function fetchLiveData() {
+    // Cache-bust two ways: a timestamp query param (defeats any CDN/proxy
+    // that caches by exact URL -- GitHub Pages sits behind one, and a plain
+    // fetch() can otherwise return a stale copy for a short window after a
+    // new deploy) and { cache: "no-store" } (defeats the browser's own HTTP
+    // cache). Belt and suspenders, since the two caches are independent.
+    return fetch(`compair_to_other_rate.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+
+  fetchLiveData()
+    .then((data) => {
+      render(data, { fromFallback: false });
+      // Auto-refresh only runs down this success path -- the file://
+      // fallback below never reaches here, so a static snapshot stays
+      // static (fetch() on file:// fails every time anyway, so polling it
+      // would just be wasted retries).
+      setInterval(() => {
+        fetchLiveData()
+          .then((data) => render(data, { fromFallback: false }))
+          .catch(() => {
+            // A transient failure on a periodic refresh isn't fatal --
+            // keep showing the last successfully-fetched data and let the
+            // next tick try again.
+          });
+      }, REFRESH_INTERVAL_MS);
+    })
+    .catch(() => {
+      const fallback = loadEmbeddedFallback();
+      if (fallback) {
+        render(fallback, { fromFallback: true });
+      } else {
+        document.getElementById("subtitle").textContent = "Could not load data.";
+        document.querySelector(".chart-wrap").innerHTML =
+          '<p class="empty-state">Could not fetch compair_to_other_rate.json and no embedded fallback was found.</p>';
+      }
+    });
+</script>

@@ -63,14 +63,27 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: python fetch_excel_data.py
 
-      - name: Build dashboard HTML
-        run: python build_gold_dashboard.py
+      # Unlike the two steps above, a bad run here should NOT stop the rest
+      # of the pipeline - the main gold-inventory dashboard doesn't depend
+      # on this data at all, and compair_to_other_rate.py already falls
+      # back to each source's last known rate internally (see that file's
+      # build_output_sources()), so only a source with NO previous value
+      # ever and a failure this run would actually go missing.
+      - name: Fetch Kolkata rate comparison data
+        continue-on-error: true
+        run: python compair_to_other_rate.py
+
+      - name: Build gold_all_ditails_with_table.html
+        run: python build_gold_all_ditails_with_table.py
+
+      - name: Build Gold_asset_value_matching.html
+        run: python build_gold_asset_value_matching.py
 
       - name: Commit and push updated data files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add fetch_tanishq_gold_rate.json fetch_excel_data.json Gold_asset_value_matching.html
+          git add fetch_tanishq_gold_rate.json fetch_excel_data.json compair_to_other_rate.json gold_all_ditails_with_table.html Gold_asset_value_matching.html
           if git diff --cached --quiet; then
             echo "No changes to commit - skipping."
           else
@@ -78,13 +91,22 @@ jobs:
             git push
           fi
 
-      # Only the generated HTML is published - the JSON files stay in the
-      # repo (for history) but are deliberately kept off the public Pages
-      # site since they contain vendor names and purchase rates.
-      - name: Prepare Pages artifact (dashboard HTML only)
+      # Publish all three site pages. fetch_tanishq_gold_rate.json and
+      # fetch_excel_data.json stay off the public site (they contain vendor
+      # names and purchase rates) - the two dashboard HTML files don't need
+      # them there anyway, since that data is already baked into the HTML
+      # at build time above. compair_to_other_rate.json is different: it's
+      # public market-rate data with nothing sensitive in it, AND
+      # compair_to_other_rate.html fetches it live client-side at view
+      # time (see that file's fetchLiveData()), so it has to be published
+      # alongside it or that page's live-data fetch would 404 once hosted.
+      - name: Prepare Pages artifact (site pages + public rate-comparison data)
         run: |
           mkdir -p _site
+          cp gold_all_ditails_with_table.html _site/
           cp Gold_asset_value_matching.html _site/
+          cp compair_to_other_rate.html _site/
+          cp compair_to_other_rate.json _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
