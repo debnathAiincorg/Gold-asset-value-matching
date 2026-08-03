@@ -61,8 +61,24 @@ files stay off the published site since they contain vendor names and
 purchase rates.
 
 Live Pages URL: `https://debnathaiincorg.github.io/Gold-asset-value-matching/`
-(serves `Gold_asset_value_matching.html`, the home page) - confirmed live
-and up to date with each automated run as of 2026-08-03.
+- the workflow's `deploy` job itself succeeds every run (confirmed via the
+Actions API), but **Settings → Pages → Source is currently still set to
+"Deploy from a branch"** rather than "GitHub Actions". That legacy setting
+makes GitHub auto-run its own separate "pages build and deployment"
+workflow on every push to `main` (including this workflow's own commits),
+which republishes the *entire* branch root as-is and overwrites whatever
+this workflow's `deploy` job just published. Symptoms as of this writing:
+the bare root URL renders a Jekyll version of this README instead of
+`index.html`/the home page, and `fetch_tanishq_gold_rate.json` /
+`fetch_excel_data.json` end up served too, despite being deliberately left
+out of the `_site/` artifact below (not a new exposure though - this repo
+is already public, so those files were always readable via the normal
+GitHub file browser regardless of Pages).
+
+**To fix:** switch Settings → Pages → Source to "GitHub Actions". That
+stops the legacy rebuild from interfering, so this workflow's own
+`_site/` (which does include an `index.html`, added for exactly this)
+becomes the only thing published.
 
 ## Environment variables
 

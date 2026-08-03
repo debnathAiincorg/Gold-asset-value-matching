@@ -107,6 +107,12 @@ jobs:
           cp Gold_asset_value_matching.html _site/
           cp compair_to_other_rate.html _site/
           cp compair_to_other_rate.json _site/
+          # The bare Pages root URL (".../") looks for index.html - without
+          # this, it would 404 once Settings -> Pages -> Source is switched
+          # to "GitHub Actions" (see README's Automation section). A copy,
+          # not a rename, so Gold_asset_value_matching.html keeps working
+          # as its own direct URL too.
+          cp Gold_asset_value_matching.html _site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
