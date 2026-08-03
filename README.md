@@ -61,11 +61,8 @@ files stay off the published site since they contain vendor names and
 purchase rates.
 
 Live Pages URL: `https://debnathaiincorg.github.io/Gold-asset-value-matching/`
-**once confirmed working** - as of this writing, GitHub Pages hasn't been
-enabled for this repo yet (Settings → Pages → Source needs to be set to
-"GitHub Actions"), so that URL currently 404s even though the workflow's
-deploy step is already wired up. Enable Pages in the repo settings and
-the next scheduled/dispatched workflow run will publish it.
+(serves `Gold_asset_value_matching.html`, the home page) - confirmed live
+and up to date with each automated run as of 2026-08-03.
 
 ## Environment variables
 
