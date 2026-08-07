@@ -312,6 +312,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <h2>Kolkata calculation</h2>
     </section>
   </div>
+<script>
+  // Auto-refresh: unlike compair_to_other_rate.html, this page's numbers
+  // are baked into the HTML at build time (see build_html() below), not
+  // fetched live -- so the only way an already-open tab picks up a newer
+  // deploy is to reload the document itself. The query param busts both
+  // the browser cache and GitHub Pages' CDN cache (which key on the full
+  // URL), so this can't just serve back the same stale copy.
+  setInterval(function () {
+    location.href = location.pathname + "?t=" + Date.now();
+  }, 5 * 60 * 1000);
+</script>
 </body>
 </html>
 """
