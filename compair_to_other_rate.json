@@ -1,5 +1,5 @@
 {
-  "timestamp": "26-Aug-2026 09:04 AM",
+  "timestamp": "26-Aug-2026 10:15 AM",
   "sources": [
     {
       "name": "Tanishq",
@@ -21,7 +21,7 @@
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 15009,
+      "rate_per_gram": 15010,
       "note": null,
       "scope": "city"
     },
