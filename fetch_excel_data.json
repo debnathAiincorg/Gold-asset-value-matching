@@ -910,5 +910,53 @@
     "Total Value": 47236,
     "Notes": "",
     "Remarks": ""
+  },
+  {
+    "Index": 58,
+    "date of Purchase": "2026-07-17",
+    "Product  Details": "Chain",
+    "Product Si No": "511107CVBGAA00",
+    "Vendor Name": "TANISHQ",
+    "Qty": 1,
+    "Net Weight Gm": 3.911,
+    "Purity Karat": 22,
+    "Gross Amount": 56228.84,
+    "Mc percentage": 9,
+    "Purchase gold Rate": 13190,
+    "Total Value": 57437.5,
+    "Notes": "",
+    "Remarks": ""
+  },
+  {
+    "Index": 59,
+    "date of Purchase": "2026-07-17",
+    "Product  Details": "Chain",
+    "Product Si No": "51D5B1CDKGAA00",
+    "Vendor Name": "TANISHQ",
+    "Qty": 1,
+    "Net Weight Gm": 4.895,
+    "Purity Karat": 22,
+    "Gross Amount": 70375,
+    "Mc percentage": 9,
+    "Purchase gold Rate": 13190,
+    "Total Value": 71888.65,
+    "Notes": "",
+    "Remarks": ""
+  },
+  {
+    "Index": 60,
+    "date of Purchase": "2026-08-08",
+    "Product  Details": "Chain",
+    "Product Si No": "5133515CQHGAA00",
+    "Vendor Name": "TANISHQ",
+    "Qty": 1,
+    "Net Weight Gm": 3.126,
+    "Purity Karat": 22,
+    "Gross Amount": 46050.2,
+    "Mc percentage": 9,
+    "Purchase gold Rate": 13515,
+    "Total Value": 47235.88,
+    "Notes": "",
+    "Remarks": ""
   }
 ]
