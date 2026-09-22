@@ -1,5 +1,5 @@
 {
-  "timestamp": "22-Sep-2026 12:15 PM",
+  "timestamp": "22-Sep-2026 01:26 PM",
   "sources": [
     {
       "name": "Tanishq",
@@ -15,7 +15,7 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 14169,
+      "rate_per_gram": 14185,
       "note": null,
       "scope": "city"
     },
