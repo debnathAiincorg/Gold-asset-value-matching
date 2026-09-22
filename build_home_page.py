@@ -1,26 +1,26 @@
 """
-build_gold_asset_value_matching.py
+build_home_page.py
 
 Purpose:
-    Build the site's home page (Gold_asset_value_matching.html): a "National calculation" summary
+    Build the site's home page (home.html): a "National calculation" summary
     of the gold we currently hold (available weight, today's Tanishq rate,
     and total value), plus an empty "Kolkata calculation" section reserved
     for future work. Also adds a nav bar linking to the full inventory
-    dashboard (gold_all_ditails_with_table.html).
+    dashboard (inventory.html).
 
 How it works, in plain English:
-    1. Load the same two JSON files build_gold_all_ditails_with_table.py uses:
+    1. Load the same two JSON files build_inventory_page.py uses:
        fetch_excel_data.json (inventory) and fetch_tanishq_gold_rate.json
        (today's rate).
     2. Add up the net weight of every item that ISN'T marked "sold" in its
        Notes/Remarks - that's the gold we actually still hold, using the
-       same "sold" convention as build_gold_all_ditails_with_table.py's isSold flag.
+       same "sold" convention as build_inventory_page.py's isSold flag.
     3. Multiply that weight by today's rate to get its current total value.
     4. Fill in an HTML template with those numbers and save it as
-       Gold_asset_value_matching.html.
+       home.html.
 
-Run this manually with:  python build_gold_asset_value_matching.py
-Then double-click Gold_asset_value_matching.html (or open it in a browser) to view it.
+Run this manually with:  python build_home_page.py
+Then double-click home.html (or open it in a browser) to view it.
 """
 
 import os
@@ -39,11 +39,11 @@ GOLD_RATE_FILE = os.path.join(SCRIPT_DIR, "fetch_tanishq_gold_rate.json")
 
 # Nav bar filenames - kept as named constants (rather than hardcoded inside
 # HTML_TEMPLATE) so the site's pages' cross-links can't silently drift out of
-# sync with build_gold_all_ditails_with_table.py / compair_to_other_rate.html
+# sync with build_inventory_page.py / compare_to_other_rate.html
 # if any of them is ever renamed again.
-HOME_PAGE = "Gold_asset_value_matching.html"
-INVENTORY_PAGE = "gold_all_ditails_with_table.html"
-COMPARE_PAGE = "compair_to_other_rate.html"
+HOME_PAGE = "home.html"
+INVENTORY_PAGE = "inventory.html"
+COMPARE_PAGE = "compare_to_other_rate.html"
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, HOME_PAGE)
 
 
@@ -128,7 +128,7 @@ def format_inr(amount: float) -> str:
 
 def is_sold(record: dict) -> bool:
     """
-    Same "sold" convention as build_gold_all_ditails_with_table.py: an item counts as
+    Same "sold" convention as build_inventory_page.py: an item counts as
     sold if either free-text field mentions it.
     """
     notes = safe_text(record.get("Notes")).lower()
@@ -313,7 +313,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </section>
   </div>
 <script>
-  // Auto-refresh: unlike compair_to_other_rate.html, this page's numbers
+  // Auto-refresh: unlike compare_to_other_rate.html, this page's numbers
   // are baked into the HTML at build time (see build_html() below), not
   // fetched live -- so the only way an already-open tab picks up a newer
   // deploy is to reload the document itself. The query param busts both

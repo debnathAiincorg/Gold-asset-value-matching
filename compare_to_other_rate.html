@@ -77,8 +77,8 @@
     flex-direction: column;
   }
 
-  /* Nav bar - same markup/classes/px sizing as Gold_asset_value_matching.html
-     and gold_all_ditails_with_table.html. Deliberately in px, not rem, so it
+  /* Nav bar - same markup/classes/px sizing as home.html
+     and inventory.html. Deliberately in px, not rem, so it
      stays the same visual size as on those pages despite this page's own
      html { font-size: 20px } rem base (set above, for the chart/table). */
   nav.top-nav {
@@ -293,9 +293,9 @@
 <nav class="top-nav">
   <span class="brand">Gold Value Matching</span>
   <div class="nav-links">
-    <a href="Gold_asset_value_matching.html" class="nav-link">Home</a>
-    <a href="gold_all_ditails_with_table.html" class="nav-link">Our Gold full details</a>
-    <a href="compair_to_other_rate.html" class="nav-link active">Compare to Other Rates</a>
+    <a href="home.html" class="nav-link">Home</a>
+    <a href="inventory.html" class="nav-link">Our Gold full details</a>
+    <a href="compare_to_other_rate.html" class="nav-link active">Compare to Other Rates</a>
   </div>
 </nav>
 
@@ -337,7 +337,7 @@
 </div>
 
 <!--
-  Embedded fallback snapshot, used only if fetch('compair_to_other_rate.json') fails
+  Embedded fallback snapshot, used only if fetch('compare_to_other_rate.json') fails
   -- normally just when this file is opened directly (file://) instead of via
   the hosted GitHub Pages URL. This is a point-in-time snapshot and will NOT
   auto-update; the live, always-current version is served from GitHub Pages
@@ -363,7 +363,7 @@
   // Hosted GitHub Pages URL, shown in the fallback notice below when this
   // file is opened directly instead of via Pages. Update if the repo/Pages
   // path ever changes.
-  const LIVE_PAGES_URL = "https://debnathaiincorg.github.io/Gold-Dashboard/compair_to_other_rate.html";
+  const LIVE_PAGES_URL = "https://debnathaiincorg.github.io/Gold-asset-value-matching/compare_to_other_rate.html";
 
   // Fixed categorical color per source name -- never by array position, so
   // identity holds even if a source is missing from a given run's JSON.
@@ -382,7 +382,7 @@
   // for that source this run) so render() can call it out explicitly.
   const EXPECTED_SOURCES = Object.keys(SOURCE_COLOR);
 
-  // How often to re-fetch compair_to_other_rate.json while the tab stays open.
+  // How often to re-fetch compare_to_other_rate.json while the tab stays open.
   // Only applies to the live-fetch path -- see the fetchLiveData() call site.
   const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -408,7 +408,7 @@
     if (fromFallback) {
       notice.style.display = "block";
       notice.innerHTML =
-        "Could not fetch <code>compair_to_other_rate.json</code> live (browsers block " +
+        "Could not fetch <code>compare_to_other_rate.json</code> live (browsers block " +
         "local-file fetches for security), so this is showing a snapshot " +
         "embedded when the dashboard was built -- it may be stale. This page " +
         "is designed to be served via GitHub Pages, where the live fetch " +
@@ -436,7 +436,7 @@
 
     if (sources.length === 0) {
       document.querySelector(".chart-wrap").innerHTML =
-        '<p class="empty-state">No source data available in compair_to_other_rate.json.</p>';
+        '<p class="empty-state">No source data available in compare_to_other_rate.json.</p>';
       document.getElementById("summary-body").innerHTML =
         '<tr><td colspan="3" class="empty-state">No data.</td></tr>';
       return;
@@ -595,7 +595,7 @@
     // fetch() can otherwise return a stale copy for a short window after a
     // new deploy) and { cache: "no-store" } (defeats the browser's own HTTP
     // cache). Belt and suspenders, since the two caches are independent.
-    return fetch(`compair_to_other_rate.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => {
+    return fetch(`compare_to_other_rate.json?t=${Date.now()}`, { cache: "no-store" }).then((r) => {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     });
@@ -625,7 +625,7 @@
       } else {
         document.getElementById("subtitle").textContent = "Could not load data.";
         document.querySelector(".chart-wrap").innerHTML =
-          '<p class="empty-state">Could not fetch compair_to_other_rate.json and no embedded fallback was found.</p>';
+          '<p class="empty-state">Could not fetch compare_to_other_rate.json and no embedded fallback was found.</p>';
       }
     });
 </script>

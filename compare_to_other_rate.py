@@ -12,8 +12,8 @@ try/except so one broken/blocked source doesn't stop the others from
 printing.
 
 Run:
-    python compair_to_other_rate.py
-    python compair_to_other_rate.py --debug   # print each source's matched text before parsing
+    python compare_to_other_rate.py
+    python compare_to_other_rate.py --debug   # print each source's matched text before parsing
 
 Setup (once):
     pip install -r requirements.txt
@@ -50,8 +50,8 @@ SELECTOR_TIMEOUT_MS = 20_000
 TANISHQ_MAX_ATTEMPTS = 3
 TANISHQ_RETRY_DELAY_SECONDS = 8
 
-# Written alongside the console output for compair_to_other_rate.html to read.
-DATA_FILE = Path(__file__).resolve().parent / "compair_to_other_rate.json"
+# Written alongside the console output for compare_to_other_rate.html to read.
+DATA_FILE = Path(__file__).resolve().parent / "compare_to_other_rate.json"
 
 # GitHub Actions runners default to UTC; localize explicitly so "Last
 # updated" reflects Indian time regardless of the host machine's own timezone.
@@ -427,7 +427,7 @@ def parse_args():
 
 def load_previous_sources(path):
     """
-    Read the last-known compair_to_other_rate.json (if any) BEFORE this run
+    Read the last-known compare_to_other_rate.json (if any) BEFORE this run
     overwrites it, so a source whose live fetch fails this run can fall
     back to its last known value instead of just vanishing from the
     dashboard -- same idea as fetch_tanishq_gold_rate.py's stale-fallback,
@@ -461,7 +461,7 @@ def load_previous_sources(path):
 def build_output_sources(results, previous_by_name, previous_timestamp, run_timestamp):
     """
     Turn this run's raw (label, price, note, error) results into the list
-    of source dicts that gets written to compair_to_other_rate.json.
+    of source dicts that gets written to compare_to_other_rate.json.
 
     A source that fetched successfully this run is used as-is. A source
     whose live fetch failed this run falls back to its entry in
@@ -508,7 +508,7 @@ def main():
     args = parse_args()
     results = []  # (label, price_per_gram_or_None, note_or_None, error_or_None)
 
-    # Read the last-known compair_to_other_rate.json BEFORE anything below
+    # Read the last-known compare_to_other_rate.json BEFORE anything below
     # overwrites it, so any source that fails this run still has a last
     # known value to fall back on (see build_output_sources()).
     previous_by_name, previous_timestamp = load_previous_sources(DATA_FILE)
@@ -595,7 +595,7 @@ def main():
         "Times of India, Goodreturns, and GoldPriceIndia are Kolkata-specific."
     )
 
-    # --- Also write results to JSON for compair_to_other_rate.html (additive; the
+    # --- Also write results to JSON for compare_to_other_rate.html (additive; the
     # console output above is unchanged by this) -----------------------------
     data = {
         "timestamp": timestamp,
