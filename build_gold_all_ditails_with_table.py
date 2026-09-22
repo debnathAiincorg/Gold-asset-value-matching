@@ -11,9 +11,13 @@ Purpose:
 How it works, in plain English:
     1. Load both JSON files.
     2. For every purchase record, calculate:
-       - "Our Amount"    = what we actually paid for the raw gold
+       - "Our Amount"    = what we actually paid for the raw gold (display only)
+       - "Amount before" = the sheet's own "Amount before MC charge" column
+                            (falls back to "Our Amount" if that cell is
+                            blank) - this is the actual cost basis
+                            Profit/Loss is measured against, not "Our Amount"
        - "Today's Value" = what that same weight of gold is worth today
-       - "Profit/Loss"   = the difference between the two
+       - "Profit/Loss"   = Today's Value minus Amount before
     3. Add up those numbers across every record for the summary cards.
     4. Build one HTML file with those summary cards plus a table (with
        sorting and searching built in via a bit of JavaScript), and save it.
@@ -137,13 +141,24 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
             gross_amount if gross_amount is not None else net_weight_gm * purchase_rate
         )
 
+        # "Amount before" is a separate cost-basis figure from the sheet's
+        # own "Amount before MC charge" column (the raw gold cost before
+        # making charges are added - confirmed distinct from "Gross Amount"
+        # against live data), and is what Profit/Loss is calculated against
+        # below - NOT "Our Amount" (which is kept only as its own display
+        # column, unchanged). If a row's "Amount before MC charge" cell is
+        # blank (e.g. not filled in yet), fall back to that row's own
+        # "Our Amount" instead of showing/using 0.
+        amount_before_cell = safe_optional_number(record.get("Amount before MC charge"))
+        amount_before = amount_before_cell if amount_before_cell is not None else our_amount
+
         # "Today's Value" applies today's 22K rate to every item's weight,
         # regardless of that item's own purity - per the requested logic.
         todays_value = net_weight_gm * todays_rate
 
-        profit_loss = todays_value - our_amount
-        # Guard against dividing by zero if "our_amount" ever comes out to 0.
-        profit_loss_pct = (profit_loss / our_amount * 100) if our_amount else 0.0
+        profit_loss = todays_value - amount_before
+        # Guard against dividing by zero if "amount_before" ever comes out to 0.
+        profit_loss_pct = (profit_loss / amount_before * 100) if amount_before else 0.0
 
         notes = safe_text(record.get("Notes"))
         remarks = safe_text(record.get("Remarks"))
@@ -161,6 +176,7 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
             "purity": purity_karat,
             "rate": round(purchase_rate, 2),
             "ourAmount": round(our_amount, 2),
+            "amountBefore": round(amount_before, 2),
             "todaysValue": round(todays_value, 2),
             "profitLoss": round(profit_loss, 2),
             "profitLossPct": round(profit_loss_pct, 2),
@@ -175,16 +191,21 @@ def compute_rows(inventory: list, todays_rate: float) -> list:
 def compute_totals(rows: list) -> dict:
     """STEP 3: Add up the per-item numbers into dashboard-wide totals."""
     total_our_amount = sum(r["ourAmount"] for r in rows)
+    total_amount_before = sum(r["amountBefore"] for r in rows)
     total_todays_value = sum(r["todaysValue"] for r in rows)
-    total_profit_loss = total_todays_value - total_our_amount
+    # Total Profit/Loss is calculated against "Amount before", same as each
+    # row's own Profit/Loss - "Our Amount" is kept only as its own total
+    # below, unused by this calculation.
+    total_profit_loss = total_todays_value - total_amount_before
     total_profit_loss_pct = (
-        total_profit_loss / total_our_amount * 100 if total_our_amount else 0.0
+        total_profit_loss / total_amount_before * 100 if total_amount_before else 0.0
     )
 
     return {
         "total_items": len(rows),
         "sold_items": sum(1 for r in rows if r["isSold"]),
         "total_our_amount": total_our_amount,
+        "total_amount_before": total_amount_before,
         "total_todays_value": total_todays_value,
         "total_profit_loss": total_profit_loss,
         "total_profit_loss_pct": total_profit_loss_pct,
@@ -505,6 +526,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     color: var(--text-muted);
   }
 
+  .calc-details {
+    margin-top: 20px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+  }
+  .calc-details h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .calc-details dl {
+    margin: 0;
+  }
+  .calc-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--gridline);
+  }
+  .calc-row:last-child { border-bottom: none; }
+  .calc-row dt {
+    flex: 0 0 150px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .calc-row dd {
+    flex: 1 1 320px;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .calc-row code {
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+  }
+
   footer.dash-footer {
     margin-top: 20px;
     font-size: 12px;
@@ -550,7 +612,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   <section class="table-section">
     <div class="table-controls">
       <input type="search" id="searchInput" placeholder="Search product, Si No, vendor, or notes...">
-      <label class="toggle"><input type="checkbox" id="hideSoldCheckbox"> Hide sold items</label>
+      <label class="toggle"><input type="checkbox" id="hideSoldCheckbox" checked> Hide sold items</label>
       <div class="date-filter">
         <label class="date-field">From Date<input type="date" id="fromDateInput"></label>
         <label class="date-field">To Date<input type="date" id="toDateInput"></label>
@@ -570,6 +632,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <th data-key="purity" class="num">Purity</th>
             <th data-key="rate" class="num">Purchase Rate</th>
             <th data-key="ourAmount" class="num">Our Amount</th>
+            <th data-key="amountBefore" class="num">Amount Before</th>
             <th data-key="todaysValue" class="num">Today's Value</th>
             <th data-key="profitLoss" class="num">Profit / Loss</th>
             <th data-key="notes">Notes</th>
@@ -578,6 +641,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="calc-details">
+    <h2>Calculation Details</h2>
+    <dl>
+      <div class="calc-row">
+        <dt>Our Amount</dt>
+        <dd>Sheet's <code>Gross Amount</code> column (falls back to <code>Net Weight &times; Purchase Rate</code> if that cell is blank). Shown for reference only - not used below.</dd>
+      </div>
+      <div class="calc-row">
+        <dt>Amount Before</dt>
+        <dd>Sheet's <code>Amount before MC charge</code> column (falls back to <code>Our Amount</code> if that cell is blank). This is the cost basis used for Profit / Loss.</dd>
+      </div>
+      <div class="calc-row">
+        <dt>Today's Value</dt>
+        <dd><code>Net Weight &times; today's 22K gold rate</code>.</dd>
+      </div>
+      <div class="calc-row">
+        <dt>Profit / Loss</dt>
+        <dd><code>Today's Value &minus; Amount Before</code>.</dd>
+      </div>
+      <div class="calc-row">
+        <dt>Profit / Loss %</dt>
+        <dd><code>(Profit / Loss &divide; Amount Before) &times; 100</code>.</dd>
+      </div>
+    </dl>
   </section>
 
   <footer class="dash-footer">Generated by build_gold_all_ditails_with_table.py on __GENERATED_AT__</footer>
@@ -605,13 +694,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   var plTileEl = document.getElementById("plTile");
   var soldCaptionEl = document.getElementById("soldCaption");
 
-  var sortKey = null;
-  var sortAscending = true;
+  // Sorted by Date, newest-first, by default (matches dateSortAscending
+  // below) - the user can still click the Date header to flip direction or
+  // click it again to go back.
+  var sortKey = "date";
+  var sortAscending = false;
   // The Date column shows its sort arrow permanently, even while a
   // different column is the active sort - so its direction has to be
   // remembered separately from sortKey/sortAscending (which describe
   // whichever column is currently active). Defaults to descending
-  // (newest-first) until the user actually sorts by date.
+  // (newest-first) to match the default sort above.
   var dateSortAscending = false;
 
   var inrFormatter = new Intl.NumberFormat("en-IN", {
@@ -654,6 +746,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     addCell(formatKarat(row.purity), "num");
     addCell(formatINR(row.rate), "num");
     addCell(formatINR(row.ourAmount), "num");
+    addCell(formatINR(row.amountBefore), "num");
     addCell(formatINR(row.todaysValue), "num");
 
     var plTd = document.createElement("td");
@@ -721,17 +814,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   // same set of rows shown in the table below them.
   function updateSummary(visibleRows) {
     var totalOurAmount = 0;
+    var totalAmountBefore = 0;
     var totalTodaysValue = 0;
     var soldCount = 0;
 
     visibleRows.forEach(function (row) {
       totalOurAmount += row.ourAmount;
+      totalAmountBefore += row.amountBefore;
       totalTodaysValue += row.todaysValue;
       if (row.isSold) soldCount++;
     });
 
-    var totalPl = totalTodaysValue - totalOurAmount;
-    var totalPlPct = totalOurAmount ? (totalPl / totalOurAmount) * 100 : 0;
+    // Total Profit/Loss is calculated against "Amount before", same as each
+    // row's own Profit/Loss - "Our Amount" (totalOurAmount) still drives its
+    // own stat tile below, unused by this calculation.
+    var totalPl = totalTodaysValue - totalAmountBefore;
+    var totalPlPct = totalAmountBefore ? (totalPl / totalAmountBefore) * 100 : 0;
 
     statTotalItemsEl.textContent = visibleRows.length;
     statOurAmountEl.textContent = formatINR(totalOurAmount);
@@ -758,7 +856,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     if (visibleRows.length === 0) {
       var tr = document.createElement("tr");
       var td = document.createElement("td");
-      td.colSpan = 11;
+      td.colSpan = 12;
       td.className = "empty-state";
       td.textContent = "No items match your search.";
       tr.appendChild(td);
