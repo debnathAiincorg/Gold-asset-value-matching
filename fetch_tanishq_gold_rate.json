@@ -1,8 +1,7 @@
 {
-  "date_fetched": "2026-10-02",
+  "date_fetched": "2026-10-03",
   "karat": "22K",
   "weight_grams": 1,
-  "rate_inr": 13820,
-  "is_stale": true,
-  "stale_reason": "Live fetch failed on 2026-10-03; showing last known rate from 2026-10-02"
+  "rate_inr": 13720,
+  "is_stale": false
 }
