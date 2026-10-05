@@ -3,6 +3,5 @@
   "karat": "22K",
   "weight_grams": 1,
   "rate_inr": 13720,
-  "is_stale": true,
-  "stale_reason": "Live fetch failed on 2026-10-05; showing last known rate from 2026-10-05"
+  "is_stale": false
 }
