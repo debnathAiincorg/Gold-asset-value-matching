@@ -1,5 +1,5 @@
 {
-  "timestamp": "11-Oct-2026 02:17 PM",
+  "timestamp": "11-Oct-2026 02:44 PM",
   "sources": [
     {
       "name": "Tanishq",
@@ -10,7 +10,7 @@
     {
       "name": "ABP Live",
       "rate_per_gram": 13791.8,
-      "note": "stale: live fetch failed on 11-Oct-2026 02:17 PM, showing last known rate from 11-Oct-2026 12:18 PM; stale: live fetch failed on 11-Oct-2026 12:18 PM, showing last known rate from 11-Oct-2026 10:16 AM; stale: live fetch failed on 11-Oct-2026 10:16 AM, showing last known rate from 10-Oct-2026 04:19 PM; converted from per-10g",
+      "note": "stale: live fetch failed on 11-Oct-2026 02:44 PM, showing last known rate from 11-Oct-2026 02:17 PM; stale: live fetch failed on 11-Oct-2026 02:17 PM, showing last known rate from 11-Oct-2026 12:18 PM; stale: live fetch failed on 11-Oct-2026 12:18 PM, showing last known rate from 11-Oct-2026 10:16 AM; stale: live fetch failed on 11-Oct-2026 10:16 AM, showing last known rate from 10-Oct-2026 04:19 PM; converted from per-10g",
       "scope": "city"
     },
     {
