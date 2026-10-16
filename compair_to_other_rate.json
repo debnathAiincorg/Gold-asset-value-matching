@@ -1,10 +1,10 @@
 {
-  "timestamp": "16-Oct-2026 10:16 AM",
+  "timestamp": "16-Oct-2026 12:19 PM",
   "sources": [
     {
       "name": "Tanishq",
       "rate_per_gram": 13555,
-      "note": null,
+      "note": "stale: live fetch failed on 16-Oct-2026 12:19 PM, showing last known rate from 16-Oct-2026 10:16 AM",
       "scope": "national"
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 13514,
+      "rate_per_gram": 13515,
       "note": null,
       "scope": "city"
     },
