@@ -4,5 +4,5 @@
   "weight_grams": 1,
   "rate_inr": 13555,
   "is_stale": true,
-  "stale_reason": "Live fetch failed on 2026-10-16; showing last known rate from 2026-10-16"
+  "stale_reason": "Live fetch failed on 2026-10-17; showing last known rate from 2026-10-16"
 }
