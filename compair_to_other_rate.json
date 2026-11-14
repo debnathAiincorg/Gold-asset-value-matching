@@ -1,33 +1,33 @@
 {
-  "timestamp": "13-Nov-2026 04:19 PM",
+  "timestamp": "14-Nov-2026 10:19 AM",
   "sources": [
     {
       "name": "Tanishq",
       "rate_per_gram": 13065,
-      "note": "stale: live fetch failed on 13-Nov-2026 04:19 PM, showing last known rate from 13-Nov-2026 03:27 PM; stale: live fetch failed on 13-Nov-2026 03:27 PM, showing last known rate from 13-Nov-2026 02:19 PM; stale: live fetch failed on 13-Nov-2026 02:19 PM, showing last known rate from 13-Nov-2026 12:19 PM; stale: live fetch failed on 13-Nov-2026 12:19 PM, showing last known rate from 13-Nov-2026 10:19 AM; stale: live fetch failed on 13-Nov-2026 10:19 AM, showing last known rate from 12-Nov-2026 04:19 PM; stale: live fetch failed on 12-Nov-2026 04:19 PM, showing last known rate from 12-Nov-2026 03:43 PM; stale: live fetch failed on 12-Nov-2026 03:43 PM, showing last known rate from 12-Nov-2026 02:20 PM; stale: live fetch failed on 12-Nov-2026 02:20 PM, showing last known rate from 12-Nov-2026 12:19 PM; stale: live fetch failed on 12-Nov-2026 12:19 PM, showing last known rate from 12-Nov-2026 10:17 AM",
+      "note": "stale: live fetch failed on 14-Nov-2026 10:19 AM, showing last known rate from 13-Nov-2026 04:19 PM; stale: live fetch failed on 13-Nov-2026 04:19 PM, showing last known rate from 13-Nov-2026 03:27 PM; stale: live fetch failed on 13-Nov-2026 03:27 PM, showing last known rate from 13-Nov-2026 02:19 PM; stale: live fetch failed on 13-Nov-2026 02:19 PM, showing last known rate from 13-Nov-2026 12:19 PM; stale: live fetch failed on 13-Nov-2026 12:19 PM, showing last known rate from 13-Nov-2026 10:19 AM; stale: live fetch failed on 13-Nov-2026 10:19 AM, showing last known rate from 12-Nov-2026 04:19 PM; stale: live fetch failed on 12-Nov-2026 04:19 PM, showing last known rate from 12-Nov-2026 03:43 PM; stale: live fetch failed on 12-Nov-2026 03:43 PM, showing last known rate from 12-Nov-2026 02:20 PM; stale: live fetch failed on 12-Nov-2026 02:20 PM, showing last known rate from 12-Nov-2026 12:19 PM; stale: live fetch failed on 12-Nov-2026 12:19 PM, showing last known rate from 12-Nov-2026 10:17 AM",
       "scope": "national"
     },
     {
       "name": "ABP Live",
-      "rate_per_gram": 12416.9,
+      "rate_per_gram": 12421.1,
       "note": "converted from per-10g",
       "scope": "city"
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 12695,
+      "rate_per_gram": 12589,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 12695,
+      "rate_per_gram": 12615,
       "note": null,
       "scope": "city"
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 12927,
+      "rate_per_gram": 12803,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
