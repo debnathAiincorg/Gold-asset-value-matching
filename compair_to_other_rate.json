@@ -1,33 +1,33 @@
 {
-  "timestamp": "18-Nov-2026 04:21 PM",
+  "timestamp": "19-Nov-2026 10:19 AM",
   "sources": [
     {
       "name": "Tanishq",
       "rate_per_gram": 13065,
-      "note": "stale: live fetch failed on 18-Nov-2026 04:21 PM, showing last known rate from 18-Nov-2026 04:12 PM; stale: live fetch failed on 18-Nov-2026 04:12 PM, showing last known rate from 18-Nov-2026 02:19 PM; stale: live fetch failed on 18-Nov-2026 02:19 PM, showing last known rate from 18-Nov-2026 12:19 PM; stale: live fetch failed on 18-Nov-2026 12:19 PM, showing last known rate from 18-Nov-2026 10:20 AM; stale: live fetch failed on 18-Nov-2026 10:20 AM, showing last known rate from 17-Nov-2026 04:35 PM; stale: live fetch failed on 17-Nov-2026 04:35 PM, showing last known rate from 17-Nov-2026 04:20 PM; stale: live fetch failed on 17-Nov-2026 04:20 PM, showing last known rate from 17-Nov-2026 02:19 PM; stale: live fetch failed on 17-Nov-2026 02:19 PM, showing last known rate from 17-Nov-2026 12:19 PM; stale: live fetch failed on 17-Nov-2026 12:19 PM, showing last known rate from 17-Nov-2026 10:19 AM; stale: live fetch failed on 17-Nov-2026 10:19 AM, showing last known rate from 16-Nov-2026 04:19 PM; stale: live fetch failed on 16-Nov-2026 04:19 PM, showing last known rate from 16-Nov-2026 03:39 PM; stale: live fetch failed on 16-Nov-2026 03:39 PM, showing last known rate from 16-Nov-2026 02:19 PM; stale: live fetch failed on 16-Nov-2026 02:19 PM, showing last known rate from 16-Nov-2026 12:19 PM; stale: live fetch failed on 16-Nov-2026 12:19 PM, showing last known rate from 16-Nov-2026 10:19 AM; stale: live fetch failed on 16-Nov-2026 10:19 AM, showing last known rate from 15-Nov-2026 04:19 PM; stale: live fetch failed on 15-Nov-2026 04:19 PM, showing last known rate from 15-Nov-2026 03:22 PM; stale: live fetch failed on 15-Nov-2026 03:22 PM, showing last known rate from 15-Nov-2026 02:19 PM; stale: live fetch failed on 15-Nov-2026 02:19 PM, showing last known rate from 15-Nov-2026 12:19 PM; stale: live fetch failed on 15-Nov-2026 12:19 PM, showing last known rate from 15-Nov-2026 10:19 AM; stale: live fetch failed on 15-Nov-2026 10:19 AM, showing last known rate from 14-Nov-2026 04:19 PM; stale: live fetch failed on 14-Nov-2026 04:19 PM, showing last known rate from 14-Nov-2026 02:52 PM; stale: live fetch failed on 14-Nov-2026 02:52 PM, showing last known rate from 14-Nov-2026 02:19 PM; stale: live fetch failed on 14-Nov-2026 02:19 PM, showing last known rate from 14-Nov-2026 12:19 PM; stale: live fetch failed on 14-Nov-2026 12:19 PM, showing last known rate from 14-Nov-2026 10:19 AM; stale: live fetch failed on 14-Nov-2026 10:19 AM, showing last known rate from 13-Nov-2026 04:19 PM; stale: live fetch failed on 13-Nov-2026 04:19 PM, showing last known rate from 13-Nov-2026 03:27 PM; stale: live fetch failed on 13-Nov-2026 03:27 PM, showing last known rate from 13-Nov-2026 02:19 PM; stale: live fetch failed on 13-Nov-2026 02:19 PM, showing last known rate from 13-Nov-2026 12:19 PM; stale: live fetch failed on 13-Nov-2026 12:19 PM, showing last known rate from 13-Nov-2026 10:19 AM; stale: live fetch failed on 13-Nov-2026 10:19 AM, showing last known rate from 12-Nov-2026 04:19 PM; stale: live fetch failed on 12-Nov-2026 04:19 PM, showing last known rate from 12-Nov-2026 03:43 PM; stale: live fetch failed on 12-Nov-2026 03:43 PM, showing last known rate from 12-Nov-2026 02:20 PM; stale: live fetch failed on 12-Nov-2026 02:20 PM, showing last known rate from 12-Nov-2026 12:19 PM; stale: live fetch failed on 12-Nov-2026 12:19 PM, showing last known rate from 12-Nov-2026 10:17 AM",
+      "note": "stale: live fetch failed on 19-Nov-2026 10:19 AM, showing last known rate from 18-Nov-2026 04:21 PM; stale: live fetch failed on 18-Nov-2026 04:21 PM, showing last known rate from 18-Nov-2026 04:12 PM; stale: live fetch failed on 18-Nov-2026 04:12 PM, showing last known rate from 18-Nov-2026 02:19 PM; stale: live fetch failed on 18-Nov-2026 02:19 PM, showing last known rate from 18-Nov-2026 12:19 PM; stale: live fetch failed on 18-Nov-2026 12:19 PM, showing last known rate from 18-Nov-2026 10:20 AM; stale: live fetch failed on 18-Nov-2026 10:20 AM, showing last known rate from 17-Nov-2026 04:35 PM; stale: live fetch failed on 17-Nov-2026 04:35 PM, showing last known rate from 17-Nov-2026 04:20 PM; stale: live fetch failed on 17-Nov-2026 04:20 PM, showing last known rate from 17-Nov-2026 02:19 PM; stale: live fetch failed on 17-Nov-2026 02:19 PM, showing last known rate from 17-Nov-2026 12:19 PM; stale: live fetch failed on 17-Nov-2026 12:19 PM, showing last known rate from 17-Nov-2026 10:19 AM; stale: live fetch failed on 17-Nov-2026 10:19 AM, showing last known rate from 16-Nov-2026 04:19 PM; stale: live fetch failed on 16-Nov-2026 04:19 PM, showing last known rate from 16-Nov-2026 03:39 PM; stale: live fetch failed on 16-Nov-2026 03:39 PM, showing last known rate from 16-Nov-2026 02:19 PM; stale: live fetch failed on 16-Nov-2026 02:19 PM, showing last known rate from 16-Nov-2026 12:19 PM; stale: live fetch failed on 16-Nov-2026 12:19 PM, showing last known rate from 16-Nov-2026 10:19 AM; stale: live fetch failed on 16-Nov-2026 10:19 AM, showing last known rate from 15-Nov-2026 04:19 PM; stale: live fetch failed on 15-Nov-2026 04:19 PM, showing last known rate from 15-Nov-2026 03:22 PM; stale: live fetch failed on 15-Nov-2026 03:22 PM, showing last known rate from 15-Nov-2026 02:19 PM; stale: live fetch failed on 15-Nov-2026 02:19 PM, showing last known rate from 15-Nov-2026 12:19 PM; stale: live fetch failed on 15-Nov-2026 12:19 PM, showing last known rate from 15-Nov-2026 10:19 AM; stale: live fetch failed on 15-Nov-2026 10:19 AM, showing last known rate from 14-Nov-2026 04:19 PM; stale: live fetch failed on 14-Nov-2026 04:19 PM, showing last known rate from 14-Nov-2026 02:52 PM; stale: live fetch failed on 14-Nov-2026 02:52 PM, showing last known rate from 14-Nov-2026 02:19 PM; stale: live fetch failed on 14-Nov-2026 02:19 PM, showing last known rate from 14-Nov-2026 12:19 PM; stale: live fetch failed on 14-Nov-2026 12:19 PM, showing last known rate from 14-Nov-2026 10:19 AM; stale: live fetch failed on 14-Nov-2026 10:19 AM, showing last known rate from 13-Nov-2026 04:19 PM; stale: live fetch failed on 13-Nov-2026 04:19 PM, showing last known rate from 13-Nov-2026 03:27 PM; stale: live fetch failed on 13-Nov-2026 03:27 PM, showing last known rate from 13-Nov-2026 02:19 PM; stale: live fetch failed on 13-Nov-2026 02:19 PM, showing last known rate from 13-Nov-2026 12:19 PM; stale: live fetch failed on 13-Nov-2026 12:19 PM, showing last known rate from 13-Nov-2026 10:19 AM; stale: live fetch failed on 13-Nov-2026 10:19 AM, showing last known rate from 12-Nov-2026 04:19 PM; stale: live fetch failed on 12-Nov-2026 04:19 PM, showing last known rate from 12-Nov-2026 03:43 PM; stale: live fetch failed on 12-Nov-2026 03:43 PM, showing last known rate from 12-Nov-2026 02:20 PM; stale: live fetch failed on 12-Nov-2026 02:20 PM, showing last known rate from 12-Nov-2026 12:19 PM; stale: live fetch failed on 12-Nov-2026 12:19 PM, showing last known rate from 12-Nov-2026 10:17 AM",
       "scope": "national"
     },
     {
       "name": "ABP Live",
-      "rate_per_gram": 12228.6,
+      "rate_per_gram": 11861.3,
       "note": "converted from per-10g",
       "scope": "city"
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 12215,
+      "rate_per_gram": 12214,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 12215,
+      "rate_per_gram": 11980,
       "note": null,
       "scope": "city"
     },
     {
       "name": "GoldPriceIndia",
-      "rate_per_gram": 12581,
+      "rate_per_gram": 12326,
       "note": "not genuinely city-specific -- identical on Kolkata/Mumbai/Chennai pages",
       "scope": "city"
     }
