@@ -1,10 +1,10 @@
 {
-  "timestamp": "21-Nov-2026 03:39 PM",
+  "timestamp": "21-Nov-2026 04:17 PM",
   "sources": [
     {
       "name": "Tanishq",
       "rate_per_gram": 11515,
-      "note": "stale: live fetch failed on 21-Nov-2026 03:39 PM, showing last known rate from 21-Nov-2026 02:16 PM",
+      "note": null,
       "scope": "national"
     },
     {
