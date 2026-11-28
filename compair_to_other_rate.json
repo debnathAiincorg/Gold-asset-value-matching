@@ -1,27 +1,27 @@
 {
-  "timestamp": "27-Nov-2026 04:51 PM",
+  "timestamp": "28-Nov-2026 10:19 AM",
   "sources": [
     {
       "name": "Tanishq",
       "rate_per_gram": 11820,
-      "note": "stale: live fetch failed on 27-Nov-2026 04:51 PM, showing last known rate from 27-Nov-2026 04:15 PM",
+      "note": "stale: live fetch failed on 28-Nov-2026 10:19 AM, showing last known rate from 27-Nov-2026 04:51 PM; stale: live fetch failed on 27-Nov-2026 04:51 PM, showing last known rate from 27-Nov-2026 04:15 PM",
       "scope": "national"
     },
     {
       "name": "ABP Live",
-      "rate_per_gram": 11224.5,
+      "rate_per_gram": 11507.4,
       "note": "converted from per-10g",
       "scope": "city"
     },
     {
       "name": "Times of India",
-      "rate_per_gram": 11600,
+      "rate_per_gram": 11771,
       "note": null,
       "scope": "city"
     },
     {
       "name": "Goodreturns",
-      "rate_per_gram": 11770,
+      "rate_per_gram": 11720,
       "note": null,
       "scope": "city"
     },
